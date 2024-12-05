@@ -22,10 +22,11 @@ def f(x, points_a, points_b):
     return get_mean_error(points_a, points_b, r, x[1:])
 
 
-dump_points = eniUtils.readJson(f'dumps/OneAlt.ManualOffsetSamples.json')
+dump_points = eniUtils.readJson(f'dumps/OneAlt.ManualOffsetSamples.Phi.json')
 
 pointsA = np.empty((0, 3))
 pointsB = np.empty((0, 3))
+
 
 for p in dump_points:
     environment_poses = p['EnvironmentPoses']
@@ -47,4 +48,4 @@ print(f'error: {result["fun"] * 1000} mm. rotation: {x[0]} offset: {x[1:]}')
 r = Rotation.from_euler('xyz', angles=[0, x[0], 0], degrees=True)
 for a, b in zip(pointsA, pointsB):
     e = get_mean_error([a], [b], r, x[1:])
-    print(f'{e * 1000:.2} mm')
+    print(f'{e * 1000:.2f} mm')
