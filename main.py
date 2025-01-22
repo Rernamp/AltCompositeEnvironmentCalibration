@@ -22,7 +22,7 @@ def f(x, points_a, points_b):
     return get_mean_error(points_a, points_b, r, x[1:])
 
 
-dump_points = eniUtils.readJson(f'dumps/OneAlt.ManualOffsetSamples.Phi.json')
+dump_points = eniUtils.readJson(f'dumps/OneAlt.ManualOffsetSamples.Phi4.json')
 
 pointsA = np.empty((0, 3))
 pointsB = np.empty((0, 3))
@@ -34,6 +34,12 @@ for p in dump_points:
         raise Exception('Currently supported only 2 environment')
     pointsA = np.append(pointsA, [environment_poses[0]["Position"]], 0)
     pointsB = np.append(pointsB, [environment_poses[1]["Position"]], 0)
+
+for i in range(len(pointsA) - 1):
+    distance_a = distance.euclidean(pointsA[i], pointsA[i + 1])
+    distance_b = distance.euclidean(pointsB[i], pointsB[i + 1])
+    print(f'distances: {distance_a * 1000:.2f} {distance_b * 1000:.2f} mm diff {(distance_a - distance_b) * 1000:.2f} mm')
+
 
 base_rotation = 0
 base_position = np.array([0, 0, 0])
