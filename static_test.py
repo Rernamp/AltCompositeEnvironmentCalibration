@@ -6,7 +6,7 @@ from Utils import *
 
 
 points_collection = PointsCollection()
-points_collection.import_from_points_collectror(f'static_dumps/one_point_exposure_diff/')
+points_collection.import_from_points_collectror(f'dumps/8points.AltPointsCollector.Result.json')
 
 all_points = points_collection.get_all_points()
 

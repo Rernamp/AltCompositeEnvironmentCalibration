@@ -24,7 +24,7 @@ def f(x, points_a, points_b):
     return get_mean_error(points_a, points_b, r, x[1:])
 
 points_collection = PointsCollection()
-points_collection.import_from_points_collectror(f'dumps/3points.AltPointsCollector.Result.json')
+points_collection.import_from_points_collectror(f'dumps/8points.AltPointsCollector.Result.json')
 
 all_points = points_collection.get_all_points()
 
