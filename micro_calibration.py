@@ -76,12 +76,21 @@ def f_external(x, snapshots, markers, snapshots_info = None):
         print(f'some internal position optimizations failed. Actual: {len(errors)} Expected {len(snapshots)}')
     return np.average(errors)
 
+def on_new_minimum(x, f, context):
+    print(f'new f = {f}')
+    for i in range(len(x) // 3):
+        m_offset = x[i * 3: (i + 1) * 3]
+        print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
+
+def on_new_minimum2(xk):
+    print(f'new minimum xk = {xk}')
 
 snapshots, markers = read_dump("micro_calibarion_dumps/10mmOffset.json")
 print(f'read {len(snapshots)} snapshots and {len(markers)} markers')
 initial_offsets = np.array([0.0 for _ in range(len(markers) * 3)])
 guess_offsets = initial_offsets.copy()
 guess_offsets[3] = 0.01
+
 print(f'e_initial {f_external(initial_offsets, snapshots, markers)}')
 print(f'e_guess {f_external(guess_offsets, snapshots, markers)}')
 
@@ -92,10 +101,20 @@ for snapshot in snapshots:
     snapshots_info.append(SnapshotInfo(last_result=np.array([0.0 for _ in range(3 + 3)])))
 
 begin = time.perf_counter()
-# result = optimize.shgo(f_external, bounds=[(-0.05, 0.05) for _ in initial_offsets], args=(snapshots, markers))
-result = minimize(f_external, initial_offsets, method='Nelder-Mead', args=(snapshots, markers, snapshots_info), bounds=[(-0.05, 0.05) for _ in initial_offsets])
+# result = optimize.shgo(f_external, bounds=[(-0.05, 0.05) for _ in initial_offsets], args=(snapshots, markers, snapshots_info))
+#result = optimize.dual_annealing(f_external, bounds=[(-0.02, 0.02) for _ in initial_offsets], args=(snapshots, markers), x0 = initial_offsets, callback=on_new_minimum)
+result_global = optimize.direct(f_external, bounds=[(-0.05, 0.05) for _ in initial_offsets], args=(snapshots, markers, snapshots_info), callback=on_new_minimum2)
 end = time.perf_counter()
-print(f'completed by: {((end - begin) * 1000):1f} ms. Result: {result}')
+print(f'completed global by: {((end - begin) * 1000):1f} ms. Result: {result_global}')
+print(f'Offsets in mm:')
+for i in range(len(markers)):
+    m_offset = result_global["x"][i * 3 : (i + 1) * 3]
+    print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
+
+begin = time.perf_counter()
+result = minimize(f_external, result_global["x"], method='Nelder-Mead', args=(snapshots, markers, snapshots_info), bounds=[(-0.05, 0.05) for _ in initial_offsets])
+end = time.perf_counter()
+print(f'completed local by: {((end - begin) * 1000):1f} ms. Result: {result}')
 print(f'Offsets in mm:')
 for i in range(len(markers)):
     m_offset = result["x"][i * 3 : (i + 1) * 3]
