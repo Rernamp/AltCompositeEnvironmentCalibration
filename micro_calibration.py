@@ -7,12 +7,17 @@ import numpy as np
 from scipy.spatial import distance
 from Utils import *
 from scipy.optimize import minimize
-
+from scipy import optimize
+from scipy.spatial.transform import Rotation
 @dataclass
 class Snapshot:
     position: np.ndarray
     rays: [np.ndarray]
     marker_indices: [int]
+
+@dataclass
+class SnapshotInfo:
+    last_result: np.ndarray
 
 def read_dump(path):
     raw_dump = eniUtils.readJson(path)
@@ -31,58 +36,67 @@ def read_dump(path):
     return snapshots, markers
 
 def get_error(position, rays, marker_indices, markers):
-    error = 0.0
-    count = 0
+    errors = []
     for i, ray in enumerate(rays):
         marker_index = marker_indices[i]
         if marker_index >= 0 and marker_index <= len(markers):
             marker = markers[marker_index]
             p_to_marker = marker - position
-            error += get_angle_between_vectors(ray, p_to_marker)
-            count += 1
-    return error / count
+            errors.append(get_angle_between_vectors(ray, p_to_marker))
+    return np.average(errors)
 
 def get_snapshot_error(snapshot, markers):
     return get_error(snapshot.position, snapshot.rays, snapshot.marker_indices, markers)
 def f_internal(x, snapshot, markers):
-    return get_error(snapshot.position + np.array(x[:3]), snapshot.rays, snapshot.marker_indices, markers)
+    rotation = Rotation.from_euler('xyz', angles=x[3:6])
+    return get_error(snapshot.position + np.array(x[:3]), [rotation.apply(ray) for ray in snapshot.rays], snapshot.marker_indices, markers)
 
-def f_external(x, snapshots, markers):
-    transformed_markers = []
-    offsets = x
-    for i, marker in enumerate(markers):
-        transformed_markers.append(np.array(marker + offsets[:3]))
-        offsets = offsets[3:]
-    total_error = 0.0
-    count = 0
-    for snapshot in snapshots:
+def f_external(x, snapshots, markers, snapshots_info = None):
+    transformed_markers = [np.array(markers[i] + x[i * 3 : (i + 1 ) * 3]) for i in range(len(markers))]
+    errors = []
+    for i, snapshot in enumerate(snapshots):
         begin = time.perf_counter()
-        result = minimize(f_internal, np.array([0.0, 0.0, 0.0]), method='Nelder-Mead', args=(snapshot, transformed_markers))
+        if snapshots_info != None:
+            initial_x = snapshots_info[i].last_result
+        else:
+            initial_x = np.array([0.0 for _ in range(3 + 3)])
+        result = minimize(f_internal, initial_x, method='Nelder-Mead', args=(snapshot, transformed_markers))
         end = time.perf_counter()
         # print(f'completed by: {((end - begin) * 1000):1f} ms. Result: {result["success"]}')
         if result["success"]:
-            x = result["x"]
-            new_position = snapshot.position + x[:3]
-            total_error += get_error(new_position, snapshot.rays, snapshot.marker_indices, transformed_markers)
-            count += 1
-    if(count < len(snapshots)):
-        print(f'some internal position optimizations failed. Actual: {count} Expected {len(snapshots)}')
-    return total_error / count
+            if snapshots_info != None:
+                snapshots_info[i].last_result = result["x"]
+            calc_offset = np.array(result["x"][:3])
+            calc_rot = Rotation.from_euler('xyz', angles=result["x"][3:6])
+            new_position = snapshot.position + calc_offset
+            e = get_error(new_position, [calc_rot.apply(ray) for ray in snapshot.rays], snapshot.marker_indices, transformed_markers)
+            # e += (np.linalg.norm(calc_offset) + calc_rot.magnitude()) / 1000
+            errors.append(e)
+    if(len(errors) < len(snapshots)):
+        print(f'some internal position optimizations failed. Actual: {len(errors)} Expected {len(snapshots)}')
+    return np.average(errors)
 
 
 snapshots, markers = read_dump("micro_calibarion_dumps/10mmOffset.json")
 print(f'read {len(snapshots)} snapshots and {len(markers)} markers')
-initial_offsets = np.array([0.0 for _ in range(36)])
+initial_offsets = np.array([0.0 for _ in range(len(markers) * 3)])
 guess_offsets = initial_offsets.copy()
 guess_offsets[3] = 0.01
 print(f'e_initial {f_external(initial_offsets, snapshots, markers)}')
 print(f'e_guess {f_external(guess_offsets, snapshots, markers)}')
 
+snapshots_info = []
+
 for snapshot in snapshots:
     print(f'rays: {len(snapshot.rays)} markers: {len(snapshot.marker_indices)} error: {math.degrees(get_snapshot_error(snapshot, markers))}')
+    snapshots_info.append(SnapshotInfo(last_result=np.array([0.0 for _ in range(3 + 3)])))
 
 begin = time.perf_counter()
-result = minimize(f_external, initial_offsets, method='Nelder-Mead', args=(snapshots, markers), bounds=[(-0.05, 0.05) for _ in initial_offsets])
+# result = optimize.shgo(f_external, bounds=[(-0.05, 0.05) for _ in initial_offsets], args=(snapshots, markers))
+result = minimize(f_external, initial_offsets, method='Nelder-Mead', args=(snapshots, markers, snapshots_info), bounds=[(-0.05, 0.05) for _ in initial_offsets])
 end = time.perf_counter()
 print(f'completed by: {((end - begin) * 1000):1f} ms. Result: {result}')
-print(f'x: {result["x"]}')
+print(f'Offsets in mm:')
+for i in range(len(markers)):
+    m_offset = result["x"][i * 3 : (i + 1) * 3]
+    print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
