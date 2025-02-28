@@ -1,5 +1,6 @@
 import math
 import time
+import datetime
 
 from EniPy import eniUtils
 from dataclasses import dataclass
@@ -20,20 +21,21 @@ class SnapshotInfo:
     last_result: np.ndarray
 
 def read_dump(path):
-    raw_dump = eniUtils.readJson(path)
+    file = eniUtils.readJson(path)
+    raw_dump = file["dump"]
     snapshots = []
-    for raw_snapshot in raw_dump["AltRaysSnapshots"]:
+    for raw_snapshot in raw_dump["snapshots"]:
         snapshot = Snapshot(None, None, None)
-        position = raw_snapshot["Position"]
-        snapshot.position = np.array([position["x"], position["y"], position["z"]])
-        snapshot.rays = [np.array([r["x"], r["y"], r["z"]]) for r in raw_snapshot["Rays"]]
-        snapshot.marker_indices = raw_snapshot["MarkerIndices"]
+        position = raw_snapshot["cameraPosition"]
+        snapshot.position = np.array(position)
+        snapshot.rays = [np.array(r) for r in raw_snapshot["rays"]]
+        snapshot.marker_indices = raw_snapshot["markerIndices"]
         snapshots.append(snapshot)
     markers = []
-    for raw_marker in raw_dump["EnvironmentMarkers"]["Markers"]:
-        markers.append(np.array([raw_marker["x"], raw_marker["y"], raw_marker["z"]]))
+    for raw_marker in raw_dump["markersPositions"]:
+        markers.append(np.array(raw_marker))
 
-    return snapshots, markers
+    return file["offsets"], snapshots, markers
 
 def get_error(position, rays, marker_indices, markers):
     errors = []
@@ -83,16 +85,21 @@ def on_new_minimum(x, f, context):
         print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
 
 def on_new_minimum2(xk):
-    print(f'new minimum xk = {xk}')
+    print(f'{datetime.datetime.now()} new minimum e = {f_external(xk, snapshots, markers)} xk = {xk}')
 
-snapshots, markers = read_dump("micro_calibarion_dumps/10mmOffset.json")
+def to_flat_array(positions):
+    flat_list = [
+        x
+        for xs in positions
+        for x in xs
+    ]
+    return  flat_list
+
+guess, snapshots, markers = read_dump("dataset/full_random/#000.json")
 print(f'read {len(snapshots)} snapshots and {len(markers)} markers')
 initial_offsets = np.array([0.0 for _ in range(len(markers) * 3)])
-guess_offsets = initial_offsets.copy()
-guess_offsets[3] = 0.01
 
-print(f'e_initial {f_external(initial_offsets, snapshots, markers)}')
-print(f'e_guess {f_external(guess_offsets, snapshots, markers)}')
+
 
 snapshots_info = []
 
@@ -100,10 +107,14 @@ for snapshot in snapshots:
     print(f'rays: {len(snapshot.rays)} markers: {len(snapshot.marker_indices)} error: {math.degrees(get_snapshot_error(snapshot, markers))}')
     snapshots_info.append(SnapshotInfo(last_result=np.array([0.0 for _ in range(3 + 3)])))
 
+
+print(f'e_initial {f_external(initial_offsets, snapshots, markers)}')
+print(f'e_guess {f_external(to_flat_array(guess), snapshots, markers)}')
+
 begin = time.perf_counter()
 # result = optimize.shgo(f_external, bounds=[(-0.05, 0.05) for _ in initial_offsets], args=(snapshots, markers, snapshots_info))
 #result = optimize.dual_annealing(f_external, bounds=[(-0.02, 0.02) for _ in initial_offsets], args=(snapshots, markers), x0 = initial_offsets, callback=on_new_minimum)
-result_global = optimize.direct(f_external, bounds=[(-0.05, 0.05) for _ in initial_offsets], args=(snapshots, markers, snapshots_info), callback=on_new_minimum2)
+result_global = optimize.direct(f_external, bounds=[(-0.02, 0.02) for _ in initial_offsets], args=(snapshots, markers), vol_tol=0, locally_biased=False, callback=on_new_minimum2)
 end = time.perf_counter()
 print(f'completed global by: {((end - begin) * 1000):1f} ms. Result: {result_global}')
 print(f'Offsets in mm:')
@@ -112,7 +123,7 @@ for i in range(len(markers)):
     print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
 
 begin = time.perf_counter()
-result = minimize(f_external, result_global["x"], method='Nelder-Mead', args=(snapshots, markers, snapshots_info), bounds=[(-0.05, 0.05) for _ in initial_offsets])
+result = minimize(f_external, result_global["x"], method='Nelder-Mead', args=(snapshots, markers), bounds=[(-0.05, 0.05) for _ in initial_offsets])
 end = time.perf_counter()
 print(f'completed local by: {((end - begin) * 1000):1f} ms. Result: {result}')
 print(f'Offsets in mm:')

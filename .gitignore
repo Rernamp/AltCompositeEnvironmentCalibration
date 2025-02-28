@@ -3,3 +3,7 @@
 /output.json
 /simulator_config.json
 /__pycache__/
+/dataset_base.json
+/dataset.json
+/temp_input.json
+/temp_output.json
