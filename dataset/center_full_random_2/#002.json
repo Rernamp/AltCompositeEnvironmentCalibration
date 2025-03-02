@@ -1,0 +1,147 @@
+{
+    "offsets": [
+        [
+            -0.005,
+            0.0,
+            0.005
+        ],
+        [
+            -0.002,
+            -0.005,
+            -0.005
+        ],
+        [
+            -0.002,
+            0.002,
+            -0.005
+        ],
+        [
+            0.0,
+            0.0,
+            -0.005
+        ],
+        [
+            -0.002,
+            0.0,
+            -0.002
+        ],
+        [
+            0.005,
+            -0.005,
+            0.0
+        ],
+        [
+            0.0,
+            0.002,
+            0.005
+        ],
+        [
+            0.005,
+            -0.002,
+            -0.005
+        ],
+        [
+            -0.002,
+            0.005,
+            0.005
+        ],
+        [
+            0.005,
+            0.002,
+            0.005
+        ],
+        [
+            -0.005,
+            0.002,
+            0.002
+        ],
+        [
+            0.002,
+            -0.005,
+            -0.005
+        ]
+    ],
+    "code": "AntilatencyAltEnvironmentComposite~AQQBZ0FudGlsYXRlbmN5QWx0RW52aXJvbm1lbnRIb3Jpem9udGFsR3JpZH5BZ0FFQkxoVGlUX2NScUEtcjQ1anZacVptVDRBQUFBQUFBQUFBQUNhbVJrX0FRUUNBd0lEQWdNQ0FBSUFBZ00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAwwK16O7AAAAAArXoztvEgO7CtejuwrXo7tvEgO7bxIDOwrXo7sAAAAAAAAAAArXo7tvEgO7AAAAAG8SA7sK16M7CtejuwAAAAAAAAAAbxIDOwrXozsK16M7bxIDuwrXo7tvEgO7CtejOwrXozsK16M7bxIDOwrXozsK16O7bxIDO28SAztvEgM7CtejuwrXo7s",
+    "dump": {
+        "enviromentCode": "AntilatencyAltEnvironmentHorizontalGrid~AgAEBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQQCAwIDAgMCAAIAAgM",
+        "markersPositions": [
+            [
+                0.5356059670448303,
+                0.0,
+                0.8702132105827332
+            ],
+            [
+                0.20027309656143188,
+                0.0,
+                0.8888621926307678
+            ],
+            [
+                -0.5356060266494751,
+                0.0,
+                0.9297868609428406
+            ],
+            [
+                0.9297868609428406,
+                0.0,
+                0.5356059670448303
+            ],
+            [
+                0.9111378788948059,
+                0.0,
+                0.20027309656143188
+            ],
+            [
+                0.8702132105827332,
+                0.0,
+                -0.5356060266494751
+            ],
+            [
+                0.5356059670448303,
+                0.0,
+                -0.9297868013381958
+            ],
+            [
+                0.20027309656143188,
+                0.0,
+                -0.9111378788948059
+            ],
+            [
+                -0.5356060266494751,
+                0.0,
+                -0.8702132701873779
+            ],
+            [
+                -0.8702132701873779,
+                0.0,
+                0.5356059670448303
+            ],
+            [
+                -0.8888621926307678,
+                0.0,
+                0.20027309656143188
+            ],
+            [
+                -0.9297868013381958,
+                0.0,
+                -0.5356060266494751
+            ]
+        ],
+        "snapshots": []
+    },
+    "points": [
+        {
+            "Position": [
+                0,
+                2,
+                0
+            ],
+            "RotationEulerAngles": [
+                90,
+                0,
+                0
+            ],
+            "StandingTimeSeconds": 0.1,
+            "ToNextPointTimeSeconds": 0
+        }
+    ]
+}

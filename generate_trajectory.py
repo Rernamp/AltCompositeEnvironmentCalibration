@@ -72,7 +72,7 @@ no_offsets = [np.array([0.0, 0.0, 0.0]) for _ in range(markers_count)]
 #         code = generate_environment_code("AntilatencyAltEnvironmentHorizontalGrid~AgAEBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQQCAwIDAgMCAAIAAgM", offsets)
 #         dataset.append({"offsets" : offsets, "code" : code})
 
-random_variants = [0, -2, 2, -5, 5, -10, 10, -15, 15]
+random_variants = [0, -2, 2, -5, 5]#, -10, 10, -15, 15]
 for _ in range(10):
     offsets = copy.deepcopy(no_offsets)
     for marker_index in range(markers_count):
@@ -83,20 +83,36 @@ for _ in range(10):
 snake_trajectory = generate_trajectory()
 
 simulator_config = {}
-rotated_last_point = copy.deepcopy(snake_trajectory[-1])
-rotated_last_point["RotationEulerAngles"][0] -= 180
-rotated_last_point["Position"][0] = 0
-rotated_last_point["Position"][2] = 0
-simulator_config["TrajectoryPoints"] = [*snake_trajectory, rotated_last_point]
+
+# rotated_last_point = copy.deepcopy(snake_trajectory[-1])
+# rotated_last_point["RotationEulerAngles"][0] -= 180
+# rotated_last_point["Position"][0] = 0
+# rotated_last_point["Position"][2] = 0
+# simulator_config["TrajectoryPoints"] = [*snake_trajectory, rotated_last_point]
+
+center_point = {}
+center_point["Position"] = np.array([0, 2, 0])
+center_point["RotationEulerAngles"] = np.array([90, 0, 0])
+center_point["StandingTimeSeconds"] = 0.1
+center_point["ToNextPointTimeSeconds"] = 0
+points = [center_point]
+last_point = copy.deepcopy(points[-1])
+last_point["StandingTimeSeconds"] = 1
+extended_points = [*points, last_point]
+simulator_config["TrajectoryPoints"] = extended_points
+
 commands = []
 for sample in dataset:
+    commands.append(f"SetEnvironment ")
+    commands.append(f"Move {len(points)} {len(points)}")
     commands.append(f"SetEnvironment {sample["code"]}")
-    commands.append("Move")
+    commands.append(f"Move {0} {len(points) - 1}")
+
 simulator_config["Commands"] = commands
 eniUtils.writeJson(f'simulator_config.json', simulator_config)
 eniUtils.writeJson(f'dataset_base.json', dataset)
 
-rays_viewer_dump = input(f'Write path to AltRaysViewer dump that contains recording of playing current config: ')
+rays_viewer_dump = input(f'Write path to AltRaysViewer dump that contains recording of playing current config: ').replace('"', '')
 temp_input_json = f'temp_input.json'
 temp_output_json = f'temp_output.json'
 eniUtils.writeJson(temp_input_json, {"AltRaysViewerDumpPath": rays_viewer_dump})
@@ -107,6 +123,7 @@ if len(dumps) != len(dataset):
     exit(1)
 for dump, data in zip(dumps, dataset):
     data["dump"] = dump
+    data["points"] = points
 
 for index, data in enumerate(dataset):
-    eniUtils.writeJson(f'dataset/full_random/#{index:03d}.json', data)
+    eniUtils.writeJson(f'dataset/center_full_random_2/#{index:03d}.json', data)
