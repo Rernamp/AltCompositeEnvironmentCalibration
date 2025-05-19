@@ -16,6 +16,17 @@ class Snapshot:
     rays: [np.ndarray]
     marker_indices: [int]
 
+@dataclass 
+class Snapshots:
+    snapsots: [Snapshot]
+    markers_indices_to_params_indices: dict[int, int]
+
+@dataclass 
+class ParametersRanges:
+    positions: [np.ndarray]
+    rotation: [np.ndarray]
+    markers_offsets: [np.ndarray]
+
 @dataclass
 class SnapshotInfo:
     last_result: np.ndarray
@@ -37,96 +48,113 @@ def read_dump(path):
 
     return file["offsets"], snapshots, markers
 
-def get_error(position, rays, marker_indices, markers):
-    errors = []
+def get_snapshot_residuals(position, rays, marker_indices, markers):
+    residuals = np.zeros(len(rays) * 3)
     for i, ray in enumerate(rays):
         marker_index = marker_indices[i]
         if marker_index >= 0 and marker_index <= len(markers):
             marker = markers[marker_index]
             p_to_marker = marker - position
-            errors.append(get_angle_between_vectors(ray, p_to_marker))
-    return np.average(errors)
+            error_residual = error_between_rays(ray, p_to_marker)
+            residuals[i*3: (i+1)*3] = error_residual
+    return residuals
+
+
+def error_by_residuals(residuals):
+    return 0.5 * np.sum(residuals ** 2)
 
 def get_snapshot_error(snapshot, markers):
-    return get_error(snapshot.position, snapshot.rays, snapshot.marker_indices, markers)
-def f_internal(x, snapshot, markers):
-    rotation = Rotation.from_euler('xyz', angles=x[3:6])
-    return get_error(snapshot.position + np.array(x[:3]), [rotation.apply(ray) for ray in snapshot.rays], snapshot.marker_indices, markers)
+    return error_by_residuals(get_snapshot_residuals(snapshot.position, snapshot.rays, snapshot.marker_indices, markers))
 
-def f_external(x, snapshots, markers, snapshots_info = None):
-    transformed_markers = [np.array(markers[i] + x[i * 3 : (i + 1 ) * 3]) for i in range(len(markers))]
-    errors = []
+
+def get_residuals_by_parameters(x, snapshots, markers, residuals_count, ranges):
+    residuals = np.zeros(residuals_count)
+
+    position_offsets = x[ranges.positions]
+
+    markers_offsets = x[ranges.markers_offsets]
+
+    new_markers = [markers[i] - markers_offsets[i] for i in range(len(markers))]
+
+    rotate = x[ranges.rotation]
+
+    iterator = 0
+
     for i, snapshot in enumerate(snapshots):
-        begin = time.perf_counter()
-        if snapshots_info != None:
-            initial_x = snapshots_info[i].last_result
-        else:
-            initial_x = np.array([0.0 for _ in range(3 + 3)])
-        result = minimize(f_internal, initial_x, method='Nelder-Mead', args=(snapshot, transformed_markers))
-        end = time.perf_counter()
-        # print(f'completed by: {((end - begin) * 1000):1f} ms. Result: {result["success"]}')
-        if result["success"]:
-            if snapshots_info != None:
-                snapshots_info[i].last_result = result["x"]
-            calc_offset = np.array(result["x"][:3])
-            calc_rot = Rotation.from_euler('xyz', angles=result["x"][3:6])
-            new_position = snapshot.position + calc_offset
-            e = get_error(new_position, [calc_rot.apply(ray) for ray in snapshot.rays], snapshot.marker_indices, transformed_markers)
-            # e += (np.linalg.norm(calc_offset) + calc_rot.magnitude()) / 1000
-            errors.append(e)
-    if(len(errors) < len(snapshots)):
-        print(f'some internal position optimizations failed. Actual: {len(errors)} Expected {len(snapshots)}')
-    return np.average(errors)
+        new_position = snapshot.position - position_offsets[i]
+        calc_rot = Rotation.from_euler('xyz', angles=rotate[i])
+        rotated_rays = [calc_rot.apply(ray) for ray in snapshot.rays]
+        rays_count = len(snapshot.rays)
+        residuals[iterator:iterator + rays_count * 3] = get_snapshot_residuals(new_position, rotated_rays, snapshot.marker_indices, new_markers)
+        iterator += rays_count * 3
 
-def on_new_minimum(x, f, context):
-    print(f'new f = {f}')
-    for i in range(len(x) // 3):
-        m_offset = x[i * 3: (i + 1) * 3]
-        print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
+    return residuals
 
-def on_new_minimum2(xk):
-    print(f'{datetime.datetime.now()} new minimum e = {f_external(xk, snapshots, markers)} xk = {xk}')
+def get_residuals_count(snapshots):
+    residuals_count = 0
+    for snapshot in snapshots:
+        residuals_count += len(snapshot.rays) * 3
+    return residuals_count
 
-def to_flat_array(positions):
-    flat_list = [
-        x
-        for xs in positions
-        for x in xs
-    ]
-    return  flat_list
-
-guess, snapshots, markers = read_dump("dataset/full_random/#000.json")
+guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#000.json")
 print(f'read {len(snapshots)} snapshots and {len(markers)} markers')
-initial_offsets = np.array([0.0 for _ in range(len(markers) * 3)])
+
+used_marker_indices = set()
+for snapshot in snapshots:
+    for index in snapshot.marker_indices:
+        used_marker_indices.add(index)
 
 
+# used_marker_indices = {index for index in [snapshot.marker_indices for snapshot in snapshots]}
+print(f"Used marker indices: {used_marker_indices}")
+used_markers_count = len(used_marker_indices)
 
 snapshots_info = []
 
 for snapshot in snapshots:
-    print(f'rays: {len(snapshot.rays)} markers: {len(snapshot.marker_indices)} error: {math.degrees(get_snapshot_error(snapshot, markers))}')
+    print(f'rays: {len(snapshot.rays)} markers: {len(snapshot.marker_indices)} error: {(get_snapshot_error(snapshot, markers))}')
     snapshots_info.append(SnapshotInfo(last_result=np.array([0.0 for _ in range(3 + 3)])))
 
+params_count = used_markers_count * 3 + len(snapshots) * 6
 
-print(f'e_initial {f_external(initial_offsets, snapshots, markers)}')
-print(f'e_guess {f_external(to_flat_array(guess), snapshots, markers)}')
+initial_params = np.zeros(params_count)
 
-begin = time.perf_counter()
-# result = optimize.shgo(f_external, bounds=[(-0.05, 0.05) for _ in initial_offsets], args=(snapshots, markers, snapshots_info))
-#result = optimize.dual_annealing(f_external, bounds=[(-0.02, 0.02) for _ in initial_offsets], args=(snapshots, markers), x0 = initial_offsets, callback=on_new_minimum)
-result_global = optimize.direct(f_external, bounds=[(-0.02, 0.02) for _ in initial_offsets], args=(snapshots, markers), vol_tol=0, locally_biased=False, callback=on_new_minimum2)
-end = time.perf_counter()
-print(f'completed global by: {((end - begin) * 1000):1f} ms. Result: {result_global}')
-print(f'Offsets in mm:')
-for i in range(len(markers)):
-    m_offset = result_global["x"][i * 3 : (i + 1) * 3]
-    print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
+residuals_count = get_residuals_count(snapshots)
 
-begin = time.perf_counter()
-result = minimize(f_external, result_global["x"], method='Nelder-Mead', args=(snapshots, markers), bounds=[(-0.05, 0.05) for _ in initial_offsets])
-end = time.perf_counter()
-print(f'completed local by: {((end - begin) * 1000):1f} ms. Result: {result}')
-print(f'Offsets in mm:')
-for i in range(len(markers)):
-    m_offset = result["x"][i * 3 : (i + 1) * 3]
-    print(f'{i:3}: {m_offset[0] * 1000:5.2f} {m_offset[1] * 1000:5.2f} {m_offset[2] * 1000:5.2f}')
+ranges = ParametersRanges(None, None, None)
+
+snapshots_count = len(snapshots)
+
+ranges.positions = [ range(i * 3,(i + 1) * 3) for i in range(snapshots_count)]
+markers_index_offset = snapshots_count * 3
+ranges.markers_offsets = [range(markers_index_offset + i * 3, markers_index_offset + (i + 1) * 3) for i in range(len(markers))]
+
+rotate_index_offset = markers_index_offset + len(markers) * 3
+ranges.rotation = [range(rotate_index_offset + i * 3, rotate_index_offset + (i + 1) * 3) for i in range(snapshots_count)]
+
+iterator = 0
+
+initial_cost = error_by_residuals(get_residuals_by_parameters(initial_params, snapshots, markers, residuals_count, ranges))
+
+print(f"Initial cost:{initial_cost}")
+
+max_position_offset = 0.1
+
+lower_bound = np.ones(params_count) * -max_position_offset
+lower_bound[np.array(ranges.rotation).ravel()] = np.ones(len(np.array(ranges.rotation).ravel())) * -180
+
+upper_bound = np.ones(params_count) * max_position_offset
+upper_bound[np.array(ranges.rotation).ravel()] = np.ones(len(np.array(ranges.rotation).ravel())) * 180
+
+result = optimize.least_squares(get_residuals_by_parameters, initial_params, args=(snapshots, markers, residuals_count, ranges), bounds=(lower_bound, upper_bound))
+# result = optimize.least_squares(get_residuals_by_parameters, initial_params, args=(snapshots, markers, residuals_count, ranges))
+
+opt_cost = error_by_residuals(get_residuals_by_parameters(result.x, snapshots, markers, residuals_count, ranges))
+print(f"Optimized cost:{opt_cost}")
+
+
+print(f"Markers: {result.x[ranges.markers_offsets]}")
+
+print(f"x: {result.x}")
+print(f"cost: {result.cost}")
+print(f"optimality: {result.optimality}")
