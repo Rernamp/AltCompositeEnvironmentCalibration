@@ -15,4 +15,4 @@ def get_angle_between_quaternions(q0, q1):
 
 def error_between_rays(ray, point_to_marker):
     error = ray - point_to_marker / np.linalg.norm(point_to_marker)
-    return error
+    return np.linalg.norm(error)

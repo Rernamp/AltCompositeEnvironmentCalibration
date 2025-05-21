@@ -49,14 +49,14 @@ def read_dump(path):
     return file["offsets"], snapshots, markers
 
 def get_snapshot_residuals(position, rays, marker_indices, markers):
-    residuals = np.zeros(len(rays) * 3)
+    residuals = np.zeros(len(rays))
     for i, ray in enumerate(rays):
         marker_index = marker_indices[i]
         if marker_index >= 0 and marker_index <= len(markers):
             marker = markers[marker_index]
             p_to_marker = marker - position
             error_residual = error_between_rays(ray, p_to_marker)
-            residuals[i*3: (i+1)*3] = error_residual
+            residuals[i] = error_residual
     return residuals
 
 
@@ -85,15 +85,15 @@ def get_residuals_by_parameters(x, snapshots, markers, residuals_count, ranges):
         calc_rot = Rotation.from_euler('xyz', angles=rotate[i])
         rotated_rays = [calc_rot.apply(ray) for ray in snapshot.rays]
         rays_count = len(snapshot.rays)
-        residuals[iterator:iterator + rays_count * 3] = get_snapshot_residuals(new_position, rotated_rays, snapshot.marker_indices, new_markers)
-        iterator += rays_count * 3
+        residuals[iterator:iterator + rays_count] = get_snapshot_residuals(new_position, rotated_rays, snapshot.marker_indices, new_markers)
+        iterator += rays_count
 
     return residuals
 
 def get_residuals_count(snapshots):
     residuals_count = 0
     for snapshot in snapshots:
-        residuals_count += len(snapshot.rays) * 3
+        residuals_count += len(snapshot.rays)
     return residuals_count
 
 guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#000.json")
