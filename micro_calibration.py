@@ -74,14 +74,14 @@ def get_residuals_by_parameters(x, snapshots, markers, residuals_count, ranges):
 
     markers_offsets = x[ranges.markers_offsets]
 
-    new_markers = [markers[i] - markers_offsets[i] for i in range(len(markers))]
+    new_markers = [markers[i] + markers_offsets[i] for i in range(len(markers))]
 
     rotate = x[ranges.rotation]
 
     iterator = 0
 
     for i, snapshot in enumerate(snapshots):
-        new_position = snapshot.position - position_offsets[i]
+        new_position = snapshot.position + position_offsets[i]
         calc_rot = Rotation.from_euler('xyz', angles=rotate[i])
         rotated_rays = [calc_rot.apply(ray) for ray in snapshot.rays]
         rays_count = len(snapshot.rays)
@@ -95,6 +95,9 @@ def get_residuals_count(snapshots):
     for snapshot in snapshots:
         residuals_count += len(snapshot.rays)
     return residuals_count
+
+def scale_cost_func(x, snapshots, markers, residuals_count, ranges):
+    return error_by_residuals(get_residuals_by_parameters(x, snapshots, markers, residuals_count, ranges))
 
 guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#000.json")
 print(f'read {len(snapshots)} snapshots and {len(markers)} markers')
@@ -134,27 +137,49 @@ ranges.rotation = [range(rotate_index_offset + i * 3, rotate_index_offset + (i +
 
 iterator = 0
 
-initial_cost = error_by_residuals(get_residuals_by_parameters(initial_params, snapshots, markers, residuals_count, ranges))
+initial_cost = scale_cost_func(initial_params, snapshots, markers, residuals_count, ranges)
+
+
+guess_params = np.zeros(params_count)
+guess_params[ranges.markers_offsets] = guess
+
+guess_cost = scale_cost_func(guess_params, snapshots, markers, residuals_count, ranges)
+
 
 print(f"Initial cost:{initial_cost}")
+print(f"Guess cost:{guess_cost}")
+print(f'Guess offsets: {guess}')
 
-max_position_offset = 0.1
+
+max_position_offset = 0.2
 
 lower_bound = np.ones(params_count) * -max_position_offset
-lower_bound[np.array(ranges.rotation).ravel()] = np.ones(len(np.array(ranges.rotation).ravel())) * -180
+lower_bound[ranges.rotation] = np.ones(np.shape(ranges.rotation)) * -180
 
 upper_bound = np.ones(params_count) * max_position_offset
-upper_bound[np.array(ranges.rotation).ravel()] = np.ones(len(np.array(ranges.rotation).ravel())) * 180
+upper_bound[ranges.rotation] = np.ones(np.shape(ranges.rotation)) * 180
 
-result = optimize.least_squares(get_residuals_by_parameters, initial_params, args=(snapshots, markers, residuals_count, ranges), bounds=(lower_bound, upper_bound))
+# result = optimize.least_squares(get_residuals_by_parameters, initial_params, args=(snapshots, markers, residuals_count, ranges), bounds=(lower_bound, upper_bound))
+
+
+def on_new_minimum2(xk):
+    print(f'{datetime.datetime.now()} new minimum e = {scale_cost_func(np.array(xk), snapshots, markers, residuals_count, ranges)}')
+    markers_offsets = np.array(xk)[ranges.markers_offsets]
+    if (np.linalg.norm(markers_offsets) != 0):
+        print(f'positions = \n{np.array(xk)[ranges.positions]}')
+        print(f'rotation = \n{np.array(xk)[ranges.rotation]}')
+        print(f'markers_offsets = \n{markers_offsets}')
+
+begin = time.perf_counter()
+result = optimize.direct(scale_cost_func, bounds=[(lower_bound[i], upper_bound[i]) for i in range(params_count)], args=(snapshots, markers, residuals_count, ranges), vol_tol=0, locally_biased=False, callback=on_new_minimum2)
+end = time.perf_counter()
+print(f'completed global by: {((end - begin) * 1000):1f} ms.')
 # result = optimize.least_squares(get_residuals_by_parameters, initial_params, args=(snapshots, markers, residuals_count, ranges))
-
-opt_cost = error_by_residuals(get_residuals_by_parameters(result.x, snapshots, markers, residuals_count, ranges))
-print(f"Optimized cost:{opt_cost}")
-
 
 print(f"Markers: {result.x[ranges.markers_offsets]}")
 
-print(f"x: {result.x}")
-print(f"cost: {result.cost}")
-print(f"optimality: {result.optimality}")
+find_x = np.array(result.x)
+
+print(f"x: {find_x}")
+print(f"markers_offsets: {find_x[ranges.markers_offsets]}")
+print(f"cost: {scale_cost_func(find_x, snapshots, markers, residuals_count, ranges)}")
