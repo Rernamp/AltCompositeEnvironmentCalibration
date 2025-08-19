@@ -28,19 +28,19 @@ def get_snapshot_error(snapshot, markers):
         get_snapshot_residuals(snapshot.position, snapshot.rays, snapshot.marker_indices, markers))
 
 
-def create_lmfit_parameters(snapshots, markers, initial_guess=None, max_position_offset=1):
+def create_lmfit_parameters(snapshots, markers, initial_guess=None, max_position_offset=0.02):
     params = Parameters()
 
     # Add position offsets for each snapshot
     for i in range(len(snapshots)):
         for j in range(3):
-            params.add(f'pos_{i}_{j}', value=0, min=-max_position_offset, max=max_position_offset)
+            params.add(f'pos_{i}_{j}', value=0)
 
     # Add marker offsets
     for i in range(len(markers)):
         for j in range(3):
             val = initial_guess[i][j] if initial_guess is not None else 0
-            params.add(f'marker_{i}_{j}', value=val, min=-max_position_offset, max=max_position_offset)
+            params.add(f'marker_{i}_{j}', value=val)
 
     # Add rotation parameters for each snapshot
     for i in range(len(snapshots)):
@@ -108,7 +108,7 @@ def optimize_with_lmfit(snapshots, markers, initial_guess=None, grad_scale=None)
 
 # Main execution
 if __name__ == "__main__":
-    guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#001.json")
+    guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#000.json")
     print(f'read {len(snapshots)} snapshots and {len(markers)} markers')
 
     used_marker_indices = set()
@@ -124,11 +124,11 @@ if __name__ == "__main__":
 
     # Run optimization
     begin = time.perf_counter()
-    result = optimize_with_lmfit(snapshots, markers, initial_guess=None)
+    result = optimize_with_lmfit(snapshots, markers, initial_guess=guess)
     end = time.perf_counter()
 
     print(f'Optimization completed in {((end - begin) * 1000):.1f} ms')
-    report_fit(result)
+    # report_fit(result)
 
     # Extract and print results
     marker_offsets = []
