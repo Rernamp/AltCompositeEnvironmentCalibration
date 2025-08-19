@@ -1,4 +1,7 @@
 import numpy as np
+from dataclasses import dataclass
+from EniPy import eniUtils
+
 def get_metrics(collection):
     return {'min': min(collection), 'max': max(collection), 'average': float(np.average(collection))}
 
@@ -14,5 +17,48 @@ def get_angle_between_quaternions(q0, q1):
     return (q0 * q1.inv()).magnitude()
 
 def error_between_rays(ray, point_to_marker):
-    error = ray - point_to_marker / np.linalg.norm(point_to_marker)
-    return np.linalg.norm(error)
+    error = ray * np.linalg.norm(point_to_marker) - point_to_marker
+    return error
+
+@dataclass
+class Snapshot:
+    position: np.ndarray
+    rays: [np.ndarray]
+    marker_indices: [int]
+
+
+@dataclass
+class Snapshots:
+    snapsots: [Snapshot]
+    markers_indices_to_params_indices: dict[int, int]
+
+
+@dataclass
+class ParametersRanges:
+    positions: [np.ndarray]
+    rotation: [np.ndarray]
+    markers_offsets: [np.ndarray]
+
+
+@dataclass
+class SnapshotInfo:
+    last_result: np.ndarray
+
+
+def read_dump(path):
+    file = eniUtils.readJson(path)
+    raw_dump = file["dump"]
+    snapshots = []
+    for raw_snapshot in raw_dump["snapshots"]:
+        snapshot = Snapshot(None, None, None)
+        position = raw_snapshot["cameraPosition"]
+        snapshot.position = np.array(position)
+        snapshot.rays = [np.array(r) for r in raw_snapshot["rays"]]
+        snapshot.marker_indices = raw_snapshot["markerIndices"]
+        snapshots.append(snapshot)
+    markers = []
+    for raw_marker in raw_dump["markersPositions"]:
+        markers.append(np.array(raw_marker))
+
+    return file["offsets"], snapshots, markers
+
