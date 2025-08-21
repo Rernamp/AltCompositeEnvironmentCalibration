@@ -2,12 +2,12 @@ import math
 import time
 import datetime
 import numpy as np
+import quaternion
 from scipy.spatial import distance
 from Utils import *
 from scipy.spatial.transform import Rotation
 from lmfit import Parameters, minimize, report_fit
 import matplotlib.pyplot as plt
-import quaternion
 
 def get_snapshot_residuals(position, rays, marker_indices, markers):
     residuals = np.zeros((len(rays), 3))
@@ -46,8 +46,10 @@ def create_lmfit_parameters(snapshots, markers, initial_guess=None, max_position
 
     # Add rotation parameters for each snapshot
     for i in range(len(snapshots)):
-        for j in range(3):
-            params.add(f'rot_{i}_{j}', value=0, min=-180, max=180)
+        for j in range(4):
+            value = 0
+            if j == 0: value = 1
+            params.add(f'rot_{i}_{j}', value=value, min=-1, max=1)
 
     return params
 
@@ -65,7 +67,7 @@ def snapshots_residuals(params, snapshots, markers):
 
     for i in range(snap_count):
         pos_offsets.append([params[f'pos_{i}_{j}'].value for j in range(3)])
-        rot_params.append([params[f'rot_{i}_{j}'].value for j in range(3)])
+        rot_params.append([params[f'rot_{i}_{j}'].value for j in range(4)])
 
     for i in range(marker_count):
         marker_offsets.append([params[f'marker_{i}_{j}'].value for j in range(3)])
@@ -75,8 +77,9 @@ def snapshots_residuals(params, snapshots, markers):
 
     for i, snapshot in enumerate(snapshots):
         new_position = snapshot.position + np.array(pos_offsets[i])
-        calc_rot = Rotation.from_euler('xyz', angles=rot_params[i])
-        rotated_rays = [calc_rot.apply(ray) for ray in snapshot.rays]
+        calc_rot = np.quaternion(rot_params[i][0], rot_params[i][1], rot_params[i][2], rot_params[i][3]).normalized()
+
+        rotated_rays = [quaternion.rotate_vectors(calc_rot, ray) for ray in snapshot.rays]
 
         for j, ray in enumerate(rotated_rays):
             marker_index = snapshot.marker_indices[j]
@@ -110,7 +113,7 @@ def optimize_with_lmfit(snapshots, markers, initial_guess=None, grad_scale=None)
 
 # Main execution
 if __name__ == "__main__":
-    guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#000.json")
+    guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#001.json")
     print(f'read {len(snapshots)} snapshots and {len(markers)} markers')
 
     used_marker_indices = set()
