@@ -6,6 +6,8 @@ from scipy.spatial import distance
 from Utils import *
 from scipy.spatial.transform import Rotation
 from lmfit import Parameters, minimize, report_fit
+import matplotlib.pyplot as plt
+import quaternion
 
 def get_snapshot_residuals(position, rays, marker_indices, markers):
     residuals = np.zeros((len(rays), 3))
@@ -34,13 +36,13 @@ def create_lmfit_parameters(snapshots, markers, initial_guess=None, max_position
     # Add position offsets for each snapshot
     for i in range(len(snapshots)):
         for j in range(3):
-            params.add(f'pos_{i}_{j}', value=0)
+            params.add(f'pos_{i}_{j}', value=0, max=max_position_offset, min=-max_position_offset)
 
     # Add marker offsets
     for i in range(len(markers)):
         for j in range(3):
             val = initial_guess[i][j] if initial_guess is not None else 0
-            params.add(f'marker_{i}_{j}', value=val)
+            params.add(f'marker_{i}_{j}', value=val, max=max_position_offset, min=-max_position_offset)
 
     # Add rotation parameters for each snapshot
     for i in range(len(snapshots)):
@@ -122,18 +124,21 @@ if __name__ == "__main__":
     initial_error = sum(get_snapshot_error(snapshot, markers) for snapshot in snapshots)
     print(f"Initial total error: {initial_error}")
 
+    guess_markers = np.array(markers) + np.array(guess)
+    guess_error = sum(get_snapshot_error(snapshot, guess_markers) for snapshot in snapshots)
+    print(f"Guess total error: {guess_error}")
+
     # Run optimization
     begin = time.perf_counter()
-    result = optimize_with_lmfit(snapshots, markers, initial_guess=guess)
+    result = optimize_with_lmfit(snapshots, markers, initial_guess=None)
     end = time.perf_counter()
-
     print(f'Optimization completed in {((end - begin) * 1000):.1f} ms')
     # report_fit(result)
 
-    # Extract and print results
-    marker_offsets = []
-    for i in range(len(markers)):
-        marker_offsets.append([result.params[f'marker_{i}_{j}'].value for j in range(3)])
+
+
+    pos_offsets, rot_params, marker_offsets= unpackParameters(result.params, snapshots, markers)
+
 
     print("\nOptimized marker offsets:")
     for i, offset in enumerate(marker_offsets):

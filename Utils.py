@@ -1,6 +1,7 @@
 import numpy as np
 from dataclasses import dataclass
 from EniPy import eniUtils
+from scipy.spatial.transform import Rotation
 
 def get_metrics(collection):
     return {'min': min(collection), 'max': max(collection), 'average': float(np.average(collection))}
@@ -68,3 +69,22 @@ def read_dump(path):
 
     return file["offsets"], snapshots, markers
 
+
+def unpackParameters(params, snapshots, markers):
+
+    # Extract parameters
+    pos_offsets = []
+    rot_params = []
+    marker_offsets = []
+
+    snap_count = len(snapshots)
+    marker_count = len(markers)
+
+    for i in range(snap_count):
+        pos_offsets.append([params[f'pos_{i}_{j}'].value for j in range(3)])
+        rot_params.append([params[f'rot_{i}_{j}'].value for j in range(3)])
+
+    for i in range(marker_count):
+        marker_offsets.append([params[f'marker_{i}_{j}'].value for j in range(3)])
+
+    return pos_offsets, rot_params, marker_offsets
