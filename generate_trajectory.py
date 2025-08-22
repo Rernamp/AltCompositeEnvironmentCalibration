@@ -64,21 +64,21 @@ markers_count = 12
 
 # all axis, 1 marker, [(+10, -5, +15), (15, 10, 10), (-5, 5, 15)]
 no_offsets = [np.array([0.0, 0.0, 0.0]) for _ in range(markers_count)]
-# fixed_errors = [[+10, -5, +15], [15, 10, 10], [-5, 5, 15]]
-# for fixed_error in fixed_errors:
-#     for marker_index in range(markers_count):
-#         offsets = copy.deepcopy(no_offsets)
-#         offsets[marker_index] = np.array([v / 1000.0 for v in fixed_error])
-#         code = generate_environment_code("AntilatencyAltEnvironmentHorizontalGrid~AgAEBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQQCAwIDAgMCAAIAAgM", offsets)
-#         dataset.append({"offsets" : offsets, "code" : code})
-
-random_variants = [0, -2, 2, -5, 5]#, -10, 10, -15, 15]
-for _ in range(10):
-    offsets = copy.deepcopy(no_offsets)
+fixed_errors = [[+10, -5, +15]]
+for fixed_error in fixed_errors:
     for marker_index in range(markers_count):
-        offsets[marker_index] = np.array([random.choice(random_variants) / 1000.0 for _ in range(3)])
-    code = generate_environment_code("AntilatencyAltEnvironmentHorizontalGrid~AgAEBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQQCAwIDAgMCAAIAAgM", offsets)
-    dataset.append({"offsets" : offsets, "code" : code})
+        offsets = copy.deepcopy(no_offsets)
+        offsets[marker_index] = np.array([v / 1000.0 for v in fixed_error])
+        code = generate_environment_code("AntilatencyAltEnvironmentHorizontalGrid~AgAEBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQQCAwIDAgMCAAIAAgM", offsets)
+        dataset.append({"offsets" : offsets, "code" : code})
+
+# random_variants = [0, -2, 2, -5, 5]#, -10, 10, -15, 15]
+# for _ in range(10):
+#     offsets = copy.deepcopy(no_offsets)
+#     for marker_index in range(markers_count):
+#         offsets[marker_index] = np.array([random.choice(random_variants) / 1000.0 for _ in range(3)])
+#     code = generate_environment_code("AntilatencyAltEnvironmentHorizontalGrid~AgAEBLhTiT_cRqA-r45jvZqZmT4AAAAAAAAAAACamRk_AQQCAwIDAgMCAAIAAgM", offsets)
+#     dataset.append({"offsets" : offsets, "code" : code})
 
 snake_trajectory = generate_trajectory()
 
@@ -115,7 +115,7 @@ eniUtils.writeJson(f'dataset_base.json', dataset)
 rays_viewer_dump = input(f'Write path to AltRaysViewer dump that contains recording of playing current config: ').replace('"', '')
 temp_input_json = f'temp_input.json'
 temp_output_json = f'temp_output.json'
-eniUtils.writeJson(temp_input_json, {"AltRaysViewerDumpPath": rays_viewer_dump})
+# eniUtils.writeJson(temp_input_json, {"AltRaysViewerDumpPath": rays_viewer_dump})
 execute_composite_editor("MarkersOffsetCalibration", temp_input_json, temp_output_json)
 dumps = eniUtils.readJson(temp_output_json)["dumps"]
 if len(dumps) != len(dataset):

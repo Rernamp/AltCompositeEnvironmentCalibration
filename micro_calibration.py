@@ -30,26 +30,26 @@ def get_snapshot_error(snapshot, markers):
         get_snapshot_residuals(snapshot.position, snapshot.rays, snapshot.marker_indices, markers))
 
 
-def create_lmfit_parameters(snapshots, markers, initial_guess=None, max_position_offset=0.02):
+def create_lmfit_parameters(snapshots, markers, initial_guess=None, max_position_offset=0.5):
     params = Parameters()
 
     # Add position offsets for each snapshot
     for i in range(len(snapshots)):
         for j in range(3):
-            params.add(f'pos_{i}_{j}', value=0, max=max_position_offset, min=-max_position_offset)
+            params.add(f'pos_{i}_{j}', value=0, max=max_position_offset, min=-max_position_offset, vary=True)
 
     # Add marker offsets
     for i in range(len(markers)):
         for j in range(3):
             val = initial_guess[i][j] if initial_guess is not None else 0
-            params.add(f'marker_{i}_{j}', value=val, max=max_position_offset, min=-max_position_offset)
+            params.add(f'marker_{i}_{j}', value=val, max=max_position_offset, min=-max_position_offset, vary=True)
 
     # Add rotation parameters for each snapshot
     for i in range(len(snapshots)):
         for j in range(4):
             value = 0
             if j == 0: value = 1
-            params.add(f'rot_{i}_{j}', value=value, min=-1, max=1)
+            params.add(f'rot_{i}_{j}', value=value, min=-1, max=1, vary=True)
 
     return params
 
@@ -104,9 +104,8 @@ def optimize_with_lmfit(snapshots, markers, initial_guess=None, grad_scale=None)
         snapshots_residuals,
         params,
         args=(snapshots, markers),
-        method='leastsq',
+        method='dual_annealing',
         iter_cb=callback_lmfit,
-        col_deriv=1
     )
 
     return result
@@ -136,6 +135,9 @@ if __name__ == "__main__":
     result = optimize_with_lmfit(snapshots, markers, initial_guess=None)
     end = time.perf_counter()
     print(f'Optimization completed in {((end - begin) * 1000):.1f} ms')
+    # print(f"Parameters: \n")
+    # for param in result.params.values():
+    #     print(f"{param}")
     # report_fit(result)
 
 
