@@ -3,10 +3,11 @@ import time
 import datetime
 import numpy as np
 import quaternion
+import scipy.optimize
 from scipy.spatial import distance
 from Utils import *
 from scipy.spatial.transform import Rotation
-from lmfit import Parameters, minimize, report_fit
+from lmfit import Parameters, minimize, report_fit, Minimizer
 import matplotlib.pyplot as plt
 
 def get_snapshot_residuals(position, rays, marker_indices, markers):
@@ -100,14 +101,25 @@ def callback_lmfit(params, iter, resid, *args, **kws):
 def optimize_with_lmfit(snapshots, markers, initial_guess=None, grad_scale=None):
     params = create_lmfit_parameters(snapshots, markers, initial_guess)
 
-    result = minimize(
+    fitter = Minimizer(
         snapshots_residuals,
         params,
-        args=(snapshots, markers),
-        method='dual_annealing',
-        iter_cb=callback_lmfit,
-    )
+        fcn_args = (snapshots, markers),
+        iter_cb=callback_lmfit)
+    # result_params = fitter.prepare_fit(params)
+    #
+    # varying = np.asarray([par.vary for par in params.values()])
+    # bounds = np.asarray([(par.min, par.max) for par in
+    #                      params.values()])[varying].tolist()
+    #
+    # lskws = dict(Dfun=None, full_output=1, col_deriv=0, ftol=1.5e-8,
+    #              xtol=1.5e-8, gtol=0.0,
+    #              epsfcn=1.e-10, factor=100, diag=None)
+    #
+    #
+    # result = scipy.optimize.direct(fitter._Minimizer__residual, bounds, args=lskws, vol_tol=0, locally_biased=False)
 
+    result = fitter.minimize(method='leastsq')
     return result
 
 # Main execution
