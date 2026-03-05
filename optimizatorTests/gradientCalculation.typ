@@ -42,16 +42,17 @@ $#cost_func_f = #cost_func_ex = (#cost_func_dot_part) / (#cost_func_norms_part)$
 
 #let nabla_m = $nabla_#m$
 
-Вспомогательная формула:
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $nabla(U/V) = (V * nabla U - U * nabla V)/(V^2)$,
+)
 
-$nabla(U/V) = (V * nabla U - U * nabla V)/(V^2)$ 
 
 #let cost_func_norms_part_nabla_m = $#nabla_m #cost_func_norms_part_f$
 #let cost_func_dot_part_nabla_m = $#nabla_m #cost_func_dot_part_f$
 
 $#nabla_m #cost_func_f = #nabla_m (#cost_func_ex) = (#cost_func_norms_part_f * (#cost_func_dot_part_nabla_m) - #cost_func_dot_part_f * (#cost_func_norms_part_nabla_m)) / (#cost_func_norms_part_f^2)$
-
-Вспомогательная формула:
 
 #let nabla_from_dot_product(by_param, vector_A, vector_B) = {
   let nabla_by_param = $nabla_#by_param$
@@ -67,12 +68,27 @@ $#nabla_m #cost_func_f = #nabla_m (#cost_func_ex) = (#cost_func_norms_part_f * (
 
 #let (nabla_example_result_ex, nabla_example_f, ..) = nabla_from_dot_product("u", $arrow(A)$, $arrow(B)$)
 
-$#nabla_example_f = #nabla_example_result_ex$
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $#nabla_example_f = #nabla_example_result_ex$,
+)
 
-#let (const_func_dot_part_nabla_by_m_ex, const_func_dot_part_nabla_by_m_f,
-const_func_dot_part_nabla_by_m_dot_to_pm, const_func_dot_part_nabla_by_m_dot_to_R, ..)   = nabla_from_dot_product(m, R, pm)
+#let (
+  const_func_dot_part_nabla_by_m_ex,
+  const_func_dot_part_nabla_by_m_f,
+  const_func_dot_part_nabla_by_m_dot_to_pm,
+  const_func_dot_part_nabla_by_m_dot_to_R,
+  const_func_dot_part_nabla_by_m_cross_to_pm,
+  const_func_dot_part_nabla_by_m_cross_to_R,
+  ..,
+) = nabla_from_dot_product(m, R, pm)
 
-$#cost_func_dot_part_nabla_m = #nabla_m (#cost_func_dot_part) = #const_func_dot_part_nabla_by_m_ex$
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $#cost_func_dot_part_nabla_m = #nabla_m (#cost_func_dot_part) = #const_func_dot_part_nabla_by_m_ex$,
+)
 
 $#const_func_dot_part_nabla_by_m_dot_to_pm = (#R dot #nabla_m) * (#pm_ex)$
 
@@ -89,7 +105,54 @@ $(#R dot #nabla_m) * #p = arrow(0)$
 
 $#dot_nabla_by_m_to_m_f = #dot_nabla_by_m_to_m_ex$
 
-$#const_func_dot_part_nabla_by_m_dot_to_pm = #dot_nabla_by_m_to_m_ex$
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $#const_func_dot_part_nabla_by_m_dot_to_pm = #dot_nabla_by_m_to_m_ex$,
+)
 
 #let const_func_dot_part_nabla_by_m_dot_to_R_ex = $arrow(0)$
-$#const_func_dot_part_nabla_by_m_dot_to_R = #const_func_dot_part_nabla_by_m_dot_to_R_ex$
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $#const_func_dot_part_nabla_by_m_dot_to_R = #const_func_dot_part_nabla_by_m_dot_to_R_ex$,
+)
+
+#let const_func_dot_part_nabla_by_m_cross_to_pm_ex = $arrow(0)$
+#let nabla_m_cross_pm = $(#nabla_m times (#pm_ex))$
+$#const_func_dot_part_nabla_by_m_cross_to_pm = #R times (#nabla_m_cross_pm)$
+
+#let nabla_m_cross_m = $(#nabla_m times #m)$
+#let nabla_m_cross_p = $(#nabla_m times #p)$
+
+$#nabla_m_cross_pm = #nabla_m_cross_m - #nabla_m_cross_p$
+
+#let nabla_m_cross_m_ex = $arrow(0)$
+#let nabla_m_cross_p_ex = $arrow(0)$
+
+$#nabla_m_cross_m = #nabla_m_cross_m_ex$
+
+$#nabla_m_cross_p = #nabla_m_cross_p_ex$
+
+#let nabla_m_cross_pm_ex = $arrow(0)$
+
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $#nabla_m_cross_pm = #nabla_m_cross_pm_ex$,
+)
+
+#let const_func_dot_part_nabla_by_m_cross_to_R_ex = $arrow(0)$
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $#const_func_dot_part_nabla_by_m_cross_to_R = #const_func_dot_part_nabla_by_m_cross_to_R_ex$,
+)
+
+#let cost_func_dot_part_nabla_m_ex = $#dot_nabla_by_m_to_m_ex$
+
+#block(
+  inset: 1em,
+  stroke: 0.5pt + gray,
+  $#cost_func_dot_part_nabla_m = #cost_func_dot_part_nabla_m_ex$,
+)
