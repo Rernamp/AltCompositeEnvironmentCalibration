@@ -53,8 +53,43 @@ $#nabla_m #cost_func_f = #nabla_m (#cost_func_ex) = (#cost_func_norms_part_f * (
 
 Вспомогательная формула:
 
-$nabla (arrow(A) dot arrow(B)) = (arrow(A) dot nabla) * arrow(B) + (arrow(B) dot nabla) * arrow(A) + arrow(A) times (nabla times arrow(B)) + arrow(B) times (nabla times arrow(A))$
+#let nabla_from_dot_product(by_param, vector_A, vector_B) = {
+  let nabla_by_param = $nabla_#by_param$
+  let dot_nabla_to_B = $(#vector_A dot #nabla_by_param) * #vector_B$
+  let dot_nabla_to_A = $(#vector_B dot #nabla_by_param) * #vector_A$
+  let cross_nabla_to_B = $#vector_A times (#nabla_by_param times #vector_B)$
+  let cross_nabla_to_A = $#vector_B times (#nabla_by_param times #vector_A)$
+  let nabla_dot_prod_result = $#dot_nabla_to_B + #dot_nabla_to_A + #cross_nabla_to_B + #cross_nabla_to_A$
+  let nabla_dot_prod_f = $#nabla_by_param (#vector_A dot #vector_B)$
 
-$#cost_func_dot_part_nabla_m = #nabla_m (#cost_func_dot_part)$
+  return (nabla_dot_prod_result, nabla_dot_prod_f, dot_nabla_to_B, dot_nabla_to_A, cross_nabla_to_B, cross_nabla_to_A)
+}
 
+#let (nabla_example_result_ex, nabla_example_f, ..) = nabla_from_dot_product("u", $arrow(A)$, $arrow(B)$)
 
+$#nabla_example_f = #nabla_example_result_ex$
+
+#let (const_func_dot_part_nabla_by_m_ex, const_func_dot_part_nabla_by_m_f,
+const_func_dot_part_nabla_by_m_dot_to_pm, const_func_dot_part_nabla_by_m_dot_to_R, ..)   = nabla_from_dot_product(m, R, pm)
+
+$#cost_func_dot_part_nabla_m = #nabla_m (#cost_func_dot_part) = #const_func_dot_part_nabla_by_m_ex$
+
+$#const_func_dot_part_nabla_by_m_dot_to_pm = (#R dot #nabla_m) * (#pm_ex)$
+
+$(#R dot #nabla_m) * #p = arrow(0)$
+
+#let dot_nabla_to_vector(to_param, left_vector, right_vector) = {
+  let nabla_by_param = $nabla_#to_param$
+  let result_f = $(#left_vector dot #nabla_by_param) * #right_vector$
+  let result_ex = $#left_vector$
+  return (result_f, result_ex)
+}
+
+#let (dot_nabla_by_m_to_m_f, dot_nabla_by_m_to_m_ex) = dot_nabla_to_vector(m, R, m)
+
+$#dot_nabla_by_m_to_m_f = #dot_nabla_by_m_to_m_ex$
+
+$#const_func_dot_part_nabla_by_m_dot_to_pm = #dot_nabla_by_m_to_m_ex$
+
+#let const_func_dot_part_nabla_by_m_dot_to_R_ex = $arrow(0)$
+$#const_func_dot_part_nabla_by_m_dot_to_R = #const_func_dot_part_nabla_by_m_dot_to_R_ex$
