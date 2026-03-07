@@ -190,7 +190,7 @@ $#pm_norm_nabla_by_m_f = #nabla_m norm(#pm_ex)$
     $#pm_times_nabla_m_to_pm = arrow(0)$
 }
 
-#let nabla_m_to_pm_ex = $2 * #pm$
+#let nabla_m_to_pm_ex = $#pm$
 
 
 $#nabla_m_to_pm = #nabla_m_to_pm_ex$
