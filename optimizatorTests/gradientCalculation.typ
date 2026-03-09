@@ -166,13 +166,24 @@ $#cost_func_norms_part_nabla_m = #cost_func_norms_part_nabla_m_ex = #R_norm_ex *
 
 $#pm_norm_nabla_by_m_f = #nabla_m norm(#pm_ex)$
 
-#block(
-    inset: 1em,
-    stroke: 0.5pt + gray,
-    $nabla_arrow(u) norm(arrow(A)) = (nabla_arrow(u)(arrow(A) dot arrow(A)))/(2 norm(arrow(A))) \
-    nabla_arrow(u)(arrow(A) dot arrow(A)) = 2 ((arrow(A) dot nabla_arrow(u)) * arrow(A) + arrow(A) times (nabla_arrow(u) times arrow(A)))
-    $
-)
+#let nabla_to_norm_vector(by_param, Vector) = {
+    let nabla_by_param = $nabla_#by_param$
+    let v = $#nabla_by_param norm(Vector)$
+    let ex = $(#nabla_by_param (Vector dot Vector))/(2 norm(Vector))$
+    return (v, ex)
+}
+
+#{
+    let (view, ex) = nabla_to_norm_vector("u", $arrow(A)$)
+    block(
+        inset: 1em,
+        stroke: 0.5pt + gray,        
+        $view = ex \
+        nabla_arrow(u)(arrow(A) dot arrow(A)) = 2 ((arrow(A) dot nabla_arrow(u)) * arrow(A) + arrow(A) times (nabla_arrow(u) times arrow(A)))
+        $
+    )
+}
+
 
 #let nabla_m_to_pm = $#nabla_m norm(#pm)$
 
@@ -210,3 +221,29 @@ $#nabla_m #cost_func_f = (#cost_func_norms_part_ex * (#cost_func_dot_part_nabla_
     stroke: 0.5pt + gray,
     $#nabla_m #cost_func_f = (#R_norm_ex) / (#cost_func_norms_part_ex) - (#cost_func_dot_part_ex * (#cost_func_norms_part_nabla_m_ex)) / (#cost_func_norms_part_ex^2)$
 )
+
+Аналогично:
+
+#let cost_func_by_nabla_m_ex = $(#R_norm_ex) / (#cost_func_norms_part_ex) - (#cost_func_dot_part_ex * (#cost_func_norms_part_nabla_m_ex)) / (#cost_func_norms_part_ex^2)$
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#nabla_m #cost_func_f = #cost_func_by_nabla_m_ex$
+)
+
+#let nabla_p = $nabla_#p$
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#nabla_p #cost_func_f = -(#nabla_m #cost_func_f)$
+)
+
+#let nabla_w = $nabla_w$
+
+$#nabla_w #cost_func_norms_part_f = #nabla_w #cost_func_norms_part_ex$
+
+$#nabla_w #cost_func_norms_part_ex = #pm_norm_ex * #nabla_w * #R_norm_ex = 
+
+$
