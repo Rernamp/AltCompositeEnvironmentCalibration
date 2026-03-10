@@ -2,14 +2,14 @@
 
 $#r$ - const ray
 #let w = $w$
-#let u = $U$
+#let u = $arrow(U)$
 #let q = $q$
 
 #let q_ex = $[#w, #u]$
 $#q = #q_ex$ - rotation quaternion
 
 #let R = $arrow(R)$
-#let R_ex = $#w^2 * #r + 2 dot (#w * (#u times #r) + #u * (#u dot #r)) - (#u dot #u) * #r$
+#let R_ex = $#w^2 * #r + 2 * (#w * (#u times #r) + #u * (#u dot #r)) - (#u dot #u) * #r$
 
 $#R = #R_ex$ - rotated vector
 
@@ -240,10 +240,56 @@ $#nabla_m #cost_func_f = (#cost_func_norms_part_ex * (#cost_func_dot_part_nabla_
     $#nabla_p #cost_func_f = -(#nabla_m #cost_func_f)$
 )
 
-#let nabla_w = $nabla_w$
+#let deriv_w = $d / (d #w)$
 
-$#nabla_w #cost_func_norms_part_f = #nabla_w #cost_func_norms_part_ex$
+$#deriv_w #cost_func_norms_part_f = #deriv_w #cost_func_norms_part_ex$
 
-$#nabla_w #cost_func_norms_part_ex = #pm_norm_ex * #nabla_w * #R_norm_ex = 
+$#deriv_w #cost_func_norms_part_ex = #pm_norm_ex * #deriv_w #R_norm_ex$
 
-$
+#let deriv_R_by_w_ex_without_scale = $(#w * #r + (#u times #r))$
+#let deriv_R_by_w_ex = $2 * #deriv_R_by_w_ex_without_scale$
+#{
+    let const_values = $1 / (2 #R_norm_ex)$
+    let deriv_part = $#deriv_w (#R dot #R)$
+    let deriv_R_by_w = $#deriv_w #R$
+    $#deriv_w #R_norm_ex = #const_values #deriv_part \
+    #deriv_part = (#deriv_w #R dot #R) + (#R dot #deriv_w #R) = 2 (#R dot #deriv_w #R) \
+    #deriv_R_by_w = #deriv_w (#R_ex) \
+    #deriv_R_by_w = #deriv_R_by_w_ex
+    $
+}
+
+#let cost_func_norms_part_f_deriv_by_w = $(2 #pm_norm_ex * (#R dot #deriv_R_by_w_ex_without_scale)) / (#R_norm_ex)$
+
+$#deriv_w #cost_func_norms_part_f = (#pm_norm_ex * (#R dot (#deriv_R_by_w_ex))) / (#R_norm_ex)$
+
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+$#deriv_w #cost_func_norms_part_f = #cost_func_norms_part_f_deriv_by_w$
+)
+#let cost_func_dot_part_ex_deriv_by_w = $2 (#deriv_R_by_w_ex_without_scale dot #pm)$
+
+$#deriv_w #cost_func_dot_part_f = #deriv_w #cost_func_dot_part_ex = (#deriv_w #R dot #pm)$
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#deriv_w #cost_func_dot_part_f = #cost_func_dot_part_ex_deriv_by_w$
+)
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+$#deriv_w #cost_func_f = (#cost_func_norms_part_f * #deriv_w #cost_func_dot_part_f - #cost_func_dot_part_f * #deriv_w #cost_func_norms_part_f) / (#cost_func_norms_part_f^2)$
+)
+
+
+#let nabla_u = $nabla_#u$
+
+$#nabla_u #cost_func_dot_part_f = #nabla_u #cost_func_dot_part_ex$
+
+#let (nabla_cost_f_by_u_ex, nabla_cost_f_by_u_f, ..) = nabla_from_dot_product($#u$, $#R$, $#pm$)
+
+$#nabla_cost_f_by_u_f = #nabla_cost_f_by_u_ex$
