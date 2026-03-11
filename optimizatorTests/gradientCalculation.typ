@@ -282,7 +282,7 @@ $#deriv_w #cost_func_dot_part_f = #deriv_w #cost_func_dot_part_ex = (#deriv_w #R
 #block(
     inset: 1em,
     stroke: 0.5pt + gray,
-$#deriv_w #cost_func_f = (#cost_func_norms_part_f * #deriv_w #cost_func_dot_part_f - #cost_func_dot_part_f * #deriv_w #cost_func_norms_part_f) / (#cost_func_norms_part_f^2)$
+    $#deriv_w #cost_func_f = (#cost_func_norms_part_f * #deriv_w #cost_func_dot_part_f - #cost_func_dot_part_f * #deriv_w #cost_func_norms_part_f) / (#cost_func_norms_part_f^2)$
 )
 
 
@@ -290,7 +290,9 @@ $#deriv_w #cost_func_f = (#cost_func_norms_part_f * #deriv_w #cost_func_dot_part
 
 $#nabla_u #cost_func_dot_part_f = #nabla_u #cost_func_dot_part_ex$
 
-#let (nabla_cost_f_by_u_ex, nabla_cost_f_by_u_f, cost_func_dot_nabla_to_pm, cost_func_dot_nabla_to_R, ..) = nabla_from_dot_product($#u$, $#R$, $#pm$)
+#let (nabla_cost_f_by_u_ex, nabla_cost_f_by_u_f, 
+    cost_func_dot_nabla_to_pm, cost_func_dot_nabla_to_R, 
+    cost_func_cross_nabla_to_pm, cost_func_cross_nabla_to_R, ..) = nabla_from_dot_product($#u$, $#R$, $#pm$)
 
 $#nabla_cost_f_by_u_f = #nabla_cost_f_by_u_ex$
 
@@ -312,4 +314,55 @@ $#pm_dot_nabla_u * #u_dot_r = ((#pm_dot_nabla_u * #u) dot #r) = (#pm dot #r)$
 
 $#pm_dot_nabla_u * (#u * #u_dot_r) = #u_dot_r* #pm + #u * (#pm dot #r)$
 
-$$
+$#cost_func_cross_nabla_to_pm = arrow(0)$
+
+$#cost_func_cross_nabla_to_R = #pm times (#nabla_u times (#R_ex))$
+
+$#nabla_u times (#u times #r) = #u (#nabla_u dot #r) - #r (#nabla_u dot #u) + (#r dot #nabla_u) #u - (#u dot #nabla_u) #r$
+
+$#nabla_u times (#u times #r) = - #r (#nabla_u dot #u) + (#r dot #nabla_u) #u$
+
+$(#nabla_u dot #u) = 3$
+
+$(#r dot #nabla_u) #u = #r$
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#nabla_u times (#u times #r) = - 2 #r$
+)
+
+
+$#nabla_u times (#u * (#u dot #r)) = (#u dot #r ) (#nabla_u times #u) + (#nabla_u (#u dot #r) times #u) = (#r times #u)$
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#nabla_u times (#u * (#u dot #r)) = (#r times #u)$
+)
+
+$#nabla_u times ((#u dot #u) * #r) = #nabla_u (#u dot #u) times #r$
+
+$#nabla_u (#u dot #u) = 2 (#u times (#nabla_u times #u) + (#u dot #nabla_u)#u) = 2(#u dot #nabla_u)#u = 2 #u$
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#nabla_u times ((#u dot #u) * #r) = 2 (#u times #r)$
+)
+
+$#nabla_u times #R = -4 * #w * #r + 2(#r times #u) - 2(#u times #r) = - 4 * #w * #r - 4 (#u times #r)$
+
+#let nabla_u_times_R = $- 4 * #w * #r - 4 (#u times #r)$
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#nabla_u times #R = #nabla_u_times_R$
+)
+
+#block(
+    inset: 1em,
+    stroke: 0.5pt + gray,
+    $#cost_func_cross_nabla_to_R = #pm times (#nabla_u_times_R)$
+)
