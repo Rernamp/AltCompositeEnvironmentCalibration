@@ -2,7 +2,7 @@
 
 $#r$ - const ray
 #let w = $w$
-#let u = $arrow(U)$
+#let u = $arrow(u)$
 #let q = $q$
 
 #let q_ex = $[#w, #u]$
@@ -290,6 +290,26 @@ $#deriv_w #cost_func_f = (#cost_func_norms_part_f * #deriv_w #cost_func_dot_part
 
 $#nabla_u #cost_func_dot_part_f = #nabla_u #cost_func_dot_part_ex$
 
-#let (nabla_cost_f_by_u_ex, nabla_cost_f_by_u_f, ..) = nabla_from_dot_product($#u$, $#R$, $#pm$)
+#let (nabla_cost_f_by_u_ex, nabla_cost_f_by_u_f, cost_func_dot_nabla_to_pm, cost_func_dot_nabla_to_R, ..) = nabla_from_dot_product($#u$, $#R$, $#pm$)
 
 $#nabla_cost_f_by_u_f = #nabla_cost_f_by_u_ex$
+
+$#cost_func_dot_nabla_to_pm = arrow(0)$
+
+#let pm_dot_nabla_u = $(#pm dot #nabla_u)$
+$#cost_func_dot_nabla_to_R = #pm_dot_nabla_u * (#R_ex)$
+
+$#pm_dot_nabla_u *( #u times #r) = (#pm_dot_nabla_u * #u times #r)$
+
+$#pm_dot_nabla_u * #u = #pm$
+
+$#pm_dot_nabla_u *( #u times #r) = (#pm times #r)$
+
+#let u_dot_r = $(#u dot #r)$
+$#pm_dot_nabla_u * (#u * #u_dot_r) = #u_dot_r * (#pm_dot_nabla_u * #u) + #u * (#pm_dot_nabla_u * #u_dot_r)$
+
+$#pm_dot_nabla_u * #u_dot_r = ((#pm_dot_nabla_u * #u) dot #r) = (#pm dot #r)$
+
+$#pm_dot_nabla_u * (#u * #u_dot_r) = #u_dot_r* #pm + #u * (#pm dot #r)$
+
+$$
