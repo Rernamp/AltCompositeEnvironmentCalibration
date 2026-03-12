@@ -1,3 +1,5 @@
+#set heading(numbering: "1.1.1.")
+
 #let r = $arrow(r)$
 
 $#r$ - const ray
@@ -285,7 +287,9 @@ $#deriv_w #cost_func_dot_part_f = #deriv_w #cost_func_dot_part_ex = (#deriv_w #R
     $#deriv_w #cost_func_f = (#cost_func_norms_part_f * #deriv_w #cost_func_dot_part_f - #cost_func_dot_part_f * #deriv_w #cost_func_norms_part_f) / (#cost_func_norms_part_f^2)$
 )
 
+= Вывод градиентаа по #u
 
+== Вывод градиента скалярного произведения по #u
 #let nabla_u = $nabla_#u$
 
 $#nabla_u #cost_func_dot_part_f = #nabla_u #cost_func_dot_part_ex$
@@ -294,12 +298,20 @@ $#nabla_u #cost_func_dot_part_f = #nabla_u #cost_func_dot_part_ex$
     cost_func_dot_nabla_to_pm, cost_func_dot_nabla_to_R, 
     cost_func_cross_nabla_to_pm, cost_func_cross_nabla_to_R, ..) = nabla_from_dot_product($#u$, $#R$, $#pm$)
 
+
+=== Вывод градиента от составляющих частей скалярного произведения по #u
 $#nabla_cost_f_by_u_f = #nabla_cost_f_by_u_ex$
+
+==== Вывод #cost_func_dot_nabla_to_pm
 
 $#cost_func_dot_nabla_to_pm = arrow(0)$
 
+==== Вывод #cost_func_dot_nabla_to_R
+
 #let pm_dot_nabla_u = $(#pm dot #nabla_u)$
 $#cost_func_dot_nabla_to_R = #pm_dot_nabla_u * (#R_ex)$
+
+===== Вывод $#pm_dot_nabla_u *( #u times #r)$
 
 $#pm_dot_nabla_u *( #u times #r) = (#pm_dot_nabla_u * #u times #r)$
 
@@ -307,17 +319,34 @@ $#pm_dot_nabla_u * #u = #pm$
 
 $#pm_dot_nabla_u *( #u times #r) = (#pm times #r)$
 
+
 #let u_dot_r = $(#u dot #r)$
+
+===== Вывод $#pm_dot_nabla_u * (#u * #u_dot_r)$
+
 $#pm_dot_nabla_u * (#u * #u_dot_r) = #u_dot_r * (#pm_dot_nabla_u * #u) + #u * (#pm_dot_nabla_u * #u_dot_r)$
 
 $#pm_dot_nabla_u * #u_dot_r = ((#pm_dot_nabla_u * #u) dot #r) = (#pm dot #r)$
 
 $#pm_dot_nabla_u * (#u * #u_dot_r) = #u_dot_r* #pm + #u * (#pm dot #r)$
 
+===== Вывод $#pm_dot_nabla_u * (#u dot #u) * #r$
+
+$#pm_dot_nabla_u * (#u dot #u) = 2 #r * (#pm_dot_nabla_u #u dot #u) = 2 #r * (#pm dot #u)$
+
+#let cost_func_dot_nabla_to_R_ex = $2 #w (#pm times #r) + 2(#u_dot_r* #pm + #u * (#pm dot #r)) - 2#r*(#pm dot #u)$
+===== Результат #cost_func_dot_nabla_to_R
+$#cost_func_dot_nabla_to_R = #cost_func_dot_nabla_to_R_ex$
+
+==== Вывод #cost_func_cross_nabla_to_pm
+
 $#cost_func_cross_nabla_to_pm = arrow(0)$
+
+==== Вывод #cost_func_cross_nabla_to_R
 
 $#cost_func_cross_nabla_to_R = #pm times (#nabla_u times (#R_ex))$
 
+===== Вывод $#nabla_u times (#u times #r)$
 $#nabla_u times (#u times #r) = #u (#nabla_u dot #r) - #r (#nabla_u dot #u) + (#r dot #nabla_u) #u - (#u dot #nabla_u) #r$
 
 $#nabla_u times (#u times #r) = - #r (#nabla_u dot #u) + (#r dot #nabla_u) #u$
@@ -332,7 +361,7 @@ $(#r dot #nabla_u) #u = #r$
     $#nabla_u times (#u times #r) = - 2 #r$
 )
 
-
+===== Вывод $#nabla_u times (#u * (#u dot #r))$
 $#nabla_u times (#u * (#u dot #r)) = (#u dot #r ) (#nabla_u times #u) + (#nabla_u (#u dot #r) times #u) = (#r times #u)$
 
 #block(
@@ -341,6 +370,7 @@ $#nabla_u times (#u * (#u dot #r)) = (#u dot #r ) (#nabla_u times #u) + (#nabla_
     $#nabla_u times (#u * (#u dot #r)) = (#r times #u)$
 )
 
+===== Вывод $#nabla_u times ((#u dot #u) * #r)$
 $#nabla_u times ((#u dot #u) * #r) = #nabla_u (#u dot #u) times #r$
 
 $#nabla_u (#u dot #u) = 2 (#u times (#nabla_u times #u) + (#u dot #nabla_u)#u) = 2(#u dot #nabla_u)#u = 2 #u$
@@ -350,7 +380,7 @@ $#nabla_u (#u dot #u) = 2 (#u times (#nabla_u times #u) + (#u dot #nabla_u)#u) =
     stroke: 0.5pt + gray,
     $#nabla_u times ((#u dot #u) * #r) = 2 (#u times #r)$
 )
-
+===== Результат $#nabla_u times #R$
 $#nabla_u times #R = -4 * #w * #r + 2(#r times #u) - 2(#u times #r) = - 4 * #w * #r - 4 (#u times #r)$
 
 #let nabla_u_times_R = $- 4 * #w * #r - 4 (#u times #r)$
@@ -361,8 +391,30 @@ $#nabla_u times #R = -4 * #w * #r + 2(#r times #u) - 2(#u times #r) = - 4 * #w *
     $#nabla_u times #R = #nabla_u_times_R$
 )
 
+===== Результат #cost_func_cross_nabla_to_R
+#let cost_func_cross_nabla_to_R_ex = $#pm times (#nabla_u_times_R)$
 #block(
     inset: 1em,
     stroke: 0.5pt + gray,
-    $#cost_func_cross_nabla_to_R = #pm times (#nabla_u_times_R)$
+    $#cost_func_cross_nabla_to_R = #cost_func_cross_nabla_to_R_ex$
 )
+
+=== Результат вывода 
+
+$#nabla_u #cost_func_dot_part_f = #cost_func_cross_nabla_to_R_ex + #cost_func_dot_nabla_to_R_ex$
+
+== Вывод градиента по нормальной составляющей 
+
+$#nabla_u #cost_func_norms_part_f = #nabla_u #cost_func_norms_part_ex = #pm_norm_ex #nabla_u #R_norm_ex$
+
+=== Вывод $#nabla_u #R_norm_ex$
+$#nabla_u #R_norm_ex$
+
+#let (view_norm_u, ex_norm_u) = nabla_to_norm_vector("u", R)
+
+$#view_norm_u = #ex_norm_u$
+
+$#nabla_u (#R dot #R) = 2 (#R times  (#nabla_u times #R) + (#R dot #nabla_u)#R)$
+
+==== Вычисление $#nabla_u times #R$
+$#nabla_u times #R = #nabla_u times (#R_ex)$
