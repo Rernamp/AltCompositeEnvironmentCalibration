@@ -334,8 +334,11 @@ $#pm_dot_nabla_u * (#u * #u_dot_r) = #u_dot_r* #pm + #u * (#pm dot #r)$
 
 $#pm_dot_nabla_u * (#u dot #u) = 2 #r * (#pm_dot_nabla_u #u dot #u) = 2 #r * (#pm dot #u)$
 
-#let cost_func_dot_nabla_to_R_ex = $2 #w (#pm times #r) + 2(#u_dot_r* #pm + #u * (#pm dot #r)) - 2#r*(#pm dot #u)$
 ===== Результат #cost_func_dot_nabla_to_R
+#let apply_const_vector_dot_nabla_u_to_R(const_vector) = {
+    return $2 #w (#const_vector times #r) + 2(#u_dot_r* #const_vector + #u * (#const_vector dot #r)) - 2#r*(#const_vector dot #u)$
+}
+#let cost_func_dot_nabla_to_R_ex = apply_const_vector_dot_nabla_u_to_R($#pm$)
 $#cost_func_dot_nabla_to_R = #cost_func_dot_nabla_to_R_ex$
 
 ==== Вывод #cost_func_cross_nabla_to_pm
@@ -381,7 +384,8 @@ $#nabla_u (#u dot #u) = 2 (#u times (#nabla_u times #u) + (#u dot #nabla_u)#u) =
     $#nabla_u times ((#u dot #u) * #r) = 2 (#u times #r)$
 )
 ===== Результат $#nabla_u times #R$
-$#nabla_u times #R = -4 * #w * #r + 2(#r times #u) - 2(#u times #r) = - 4 * #w * #r - 4 (#u times #r)$
+#let nabla_u_times_R = $-4 * #w * #r + 2(#r times #u) - 2(#u times #r) = - 4 * #w * #r - 4 (#u times #r)$
+$#nabla_u times #R = #nabla_u_times_R$
 
 #let nabla_u_times_R = $- 4 * #w * #r - 4 (#u times #r)$
 
@@ -414,7 +418,15 @@ $#nabla_u #R_norm_ex$
 
 $#view_norm_u = #ex_norm_u$
 
-$#nabla_u (#R dot #R) = 2 (#R times  (#nabla_u times #R) + (#R dot #nabla_u)#R)$
+#let R_dot_nabla_u_R = $(#R dot #nabla_u) * #R$
+$#nabla_u (#R dot #R) = 2 (#R times  (#nabla_u times #R) + #R_dot_nabla_u_R)$
 
 ==== Вычисление $#nabla_u times #R$
-$#nabla_u times #R = #nabla_u times (#R_ex)$
+$#nabla_u times #R = #nabla_u_times_R$
+
+==== Вычисление $#R_dot_nabla_u_R$
+#let R_dot_nabla_u_R_ex = apply_const_vector_dot_nabla_u_to_R($#R$)
+$(#R dot #nabla_u)#R = #R_dot_nabla_u_R_ex$
+==== Результат $#view_norm_u$
+
+$#view_norm_u = (#R times (#nabla_u_times_R) + #R_dot_nabla_u_R_ex) / (#R_norm_ex)$
