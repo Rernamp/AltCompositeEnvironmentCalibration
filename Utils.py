@@ -2,6 +2,7 @@ import numpy as np
 from dataclasses import dataclass
 from EniPy import eniUtils
 from scipy.spatial.transform import Rotation
+from lmfit import Parameter, Parameters
 
 def get_metrics(collection):
     return {'min': min(collection), 'max': max(collection), 'average': float(np.average(collection))}
@@ -88,3 +89,11 @@ def unpackParameters(params, snapshots, markers):
         marker_offsets.append([params[f'marker_{i}_{j}'].value for j in range(3)])
 
     return pos_offsets, rot_params, marker_offsets
+
+def add_point_to_parameters(parameters: Parameters, point: np.ndarray, prefix: str):
+    parameters.add(Parameter(name=f"{prefix}_x", value=point[0]))
+    parameters.add(Parameter(name=f"{prefix}_y", value=point[1]))
+    parameters.add(Parameter(name=f"{prefix}_z", value=point[2]))
+    
+def extract_point_from_parameters(parameters: Parameters, prefix: str):
+    return np.array([parameters[f"{prefix}_x"], parameters[f"{prefix}_y"], parameters[f"{prefix}_z"]])

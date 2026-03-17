@@ -1,4 +1,3 @@
-from Utils import *
 from lmfit import Parameter, Parameters, Minimizer, minimize, report_fit
 import numpy as np
 import copy
@@ -6,6 +5,7 @@ import sys
 from random import randrange
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from Utils import *
 
 
 markers = np.array([[0, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 0]])
@@ -48,14 +48,44 @@ for i, snapshot in enumerate(modified_snapshots):
     add_point_to_parameters(parameters=parameters,
                             point=snapshot.position, prefix=f"pos_{i}")
 
-print(parameters)
+def cost_func(parameters, snapshots: [Snapshot], markers):
+    result = []
 
+    for i, snapshot in enumerate(snapshots):
+        position = extract_point_from_parameters(parameters=parameters, prefix=f"pos_{i}")
+        for ray_it, ray in enumerate(snapshot.rays):
+            pm = markers[snapshot.marker_indices[ray_it], :] - position
+            dot_part = np.dot(ray, pm)
+            norm_part = np.linalg.norm(pm) * np.linalg.norm(ray)
+            result.append(dot_part / norm_part)
+    return np.array(result)
 
-def cost_func(parameters, snapshots, markers):
-    return 0
+def gradient_function(params, snapshots: [Snapshot], markers):
+    result = []
     
+    for i, snapshot in enumerate(snapshots):
+        position = extract_point_from_parameters(parameters=parameters, prefix=f"pos_{i}")
+        result_by_pos = np.zeros(position.shape)
+        for ray_it, ray in enumerate(snapshot.rays):
+            pm = markers[snapshot.marker_indices[ray_it]] - position
+            dot_part = np.dot(ray, pm)
+            norm_part = np.linalg.norm(pm) * np.linalg.norm(ray)
+            result_by_pos += (ray / norm_part) - (dot_part * np.linalg.norm(ray) * pm) / (np.linalg.norm(pm) * norm_part * norm_part)
+        
+        result.extend(result_by_pos)
+    
+    
+    return np.array(result)
+
+cost_func_before = cost_func(parameters=parameters, snapshots=modified_snapshots, markers=markers)
+
 mini = Minimizer(cost_func, parameters, fcn_args=(modified_snapshots, markers))
-result = mini.minimize(method='BFGS')
+# result = mini.minimize(method='leastsq', jac=gradient_function)
+result = mini.minimize(method='leastsq')
+
 print(report_fit(result))
-    
-    
+
+cost_func_after = cost_func(parameters=result.params, snapshots=modified_snapshots, markers=markers)
+
+print(f"Before optimization cost func value: {cost_func_before}")
+print(f"After optimization cost func value: {cost_func_after}")

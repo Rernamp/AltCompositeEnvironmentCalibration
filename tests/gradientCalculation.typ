@@ -203,7 +203,7 @@ $#pm_norm_nabla_by_m_f = #nabla_m norm(#pm_ex)$
     $#pm_times_nabla_m_to_pm = arrow(0)$
 }
 
-#let nabla_m_to_pm_ex = $#pm$
+#let nabla_m_to_pm_ex = $#pm / #pm_norm_ex$
 
 
 $#nabla_m_to_pm = #nabla_m_to_pm_ex$
@@ -221,12 +221,12 @@ $#nabla_m #cost_func_f = (#cost_func_norms_part_ex * (#cost_func_dot_part_nabla_
 #block(
     inset: 1em,
     stroke: 0.5pt + gray,
-    $#nabla_m #cost_func_f = (#R_norm_ex) / (#cost_func_norms_part_ex) - (#cost_func_dot_part_ex * (#cost_func_norms_part_nabla_m_ex)) / (#cost_func_norms_part_ex^2)$
+    $#nabla_m #cost_func_f = (#R) / (#cost_func_norms_part_ex) - (#cost_func_dot_part_ex * (#cost_func_norms_part_nabla_m_ex)) / (#cost_func_norms_part_ex^2)$
 )
 
 Аналогично:
 
-#let cost_func_by_nabla_m_ex = $(#R_norm_ex) / (#cost_func_norms_part_ex) - (#cost_func_dot_part_ex * (#cost_func_norms_part_nabla_m_ex)) / (#cost_func_norms_part_ex^2)$
+#let cost_func_by_nabla_m_ex = $(#R) / (#cost_func_norms_part_ex) - (#cost_func_dot_part_ex * (#cost_func_norms_part_nabla_m_ex)) / (#cost_func_norms_part_ex^2)$
 
 #block(
     inset: 1em,
