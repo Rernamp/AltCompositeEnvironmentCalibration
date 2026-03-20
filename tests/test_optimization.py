@@ -49,7 +49,13 @@ snapshot_for_optimization = modified_snapshots
 for i, snapshot in enumerate(snapshot_for_optimization):
     add_point_to_parameters(parameters=parameters,
                             point=snapshot.position, prefix=f"pos_{i}")
+    
+    add_point_to_parameters(parameters=parameters,
+                            point=np.ones(snapshot.position.shape), prefix=f"quat_u_{i}", vary=False)
+    parameters.add(Parameter(name=f"quat_w_{i}", value=1, vary=False))
 
+for i, marker in enumerate(markers):
+    add_point_to_parameters(parameters=parameters, point=marker, prefix=f"marker_{i}", vary=False)
 
 def cost_func(parameters: Parameters, snapshots: [Snapshot], markers):
     result = []
@@ -65,7 +71,6 @@ def cost_func(parameters: Parameters, snapshots: [Snapshot], markers):
             result.append(1 - (value * value))
     return np.array(result)
 
-k = 0
 
 def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
     result = []
@@ -74,13 +79,17 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
             parameters=parameters, prefix=f"pos_{i}")
         result_by_pos = np.zeros(len(parameters))
         for ray_it, ray in enumerate(snapshot.rays):
+            grad_by_name = {parameter : 0 for parameter in parameters.valuesdict()}
+            
             pm = markers[snapshot.marker_indices[ray_it]] - position
             dot_part = np.dot(ray, pm)
             norm_part = np.linalg.norm(pm) * np.linalg.norm(ray)
             cost_func = dot_part / norm_part
-            result_by_pos[i * 3: (i + 1) * 3] = (2 * cost_func) * ((ray / norm_part) - (
+            grad_by_pos_i = (2 * cost_func) * ((ray / norm_part) - (
                 dot_part * np.linalg.norm(ray) * pm) / (np.linalg.norm(pm) * norm_part * norm_part))
-            result.append(copy.deepcopy(result_by_pos))
+            
+            add_point_to_dict(grad_by_name, grad_by_pos_i, f"pos_{i}")
+            result.append([grad_by_name[name] for name in parameters if parameters[name].vary])
     
     return np.array(result)
 
