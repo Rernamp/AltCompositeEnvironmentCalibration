@@ -167,6 +167,8 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
 
     return np.array(result)
 
+cost_func_synt = cost_func(
+    parameters=parameters, snapshots=synthetic_snapshots, markers=markers)
 
 cost_func_before = cost_func(
     parameters=parameters, snapshots=snapshot_for_optimization, markers=modify_markers)
@@ -229,6 +231,9 @@ print(f"Total positions error after optimization: {total_positions_error_after}"
 print(f"Total markers error before optimization: {total_markers_error_before}")
 print(f"Total markers error after optimization: {total_markers_error_after}")
 
+print()
+
+print(f"Synthetic sum cost func value: {np.sum(cost_func_synt)}")
 print(f"Before optimization sum cost func value: {np.sum(cost_func_before)}")
 print(f"After optimization sum cost func value: {np.sum(cost_func_after)}")
 print(f"Func call number: {result.nfev}")
