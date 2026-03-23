@@ -28,7 +28,7 @@ offset = 1
 
 positions = []
 
-points_variants = 10
+points_variants = 4
 
 for marker in markers:
     # positions.append(marker + np.array([0, 0, offset]))
@@ -56,7 +56,7 @@ modified_snapshots = copy.deepcopy(synthetic_snapshots)
 max_offset = 0.01
 
 for i, snapshot in enumerate(modified_snapshots):
-    # if i <= 10:
+    # if i <= 0:
     #     snapshot.position = snapshot.position + \
     #         np.random.rand(snapshot.position.shape[0]) * max_offset
     snapshot.position = snapshot.position + \
@@ -67,7 +67,7 @@ parameters = Parameters()
 
 snapshot_for_optimization = modified_snapshots
 
-
+modify_markers = []
 for i, marker in enumerate(markers):
     max_marker_offset = 0.01
     
@@ -79,11 +79,12 @@ for i, marker in enumerate(markers):
     modify_marker = marker + \
         np.random.rand(marker.shape[0]) * max_marker_offset
     add_point_to_parameters(parameters=parameters,
-                            point=modify_marker, prefix=f"marker_{i}", vary=True)
+                            point=np.zeros(3), prefix=f"diff_marker_{i}", vary=True)
+    modify_markers.append(modify_marker)
     
 for i, snapshot in enumerate(snapshot_for_optimization):
     add_point_to_parameters(parameters=parameters,
-                            point=snapshot.position, prefix=f"pos_{i}", vary=True)
+                            point=np.zeros(3), prefix=f"diff_pos_{i}", vary=True)
 
 for i, snapshot in enumerate(snapshot_for_optimization):
     add_point_to_parameters(parameters=parameters,
@@ -94,17 +95,17 @@ for i, snapshot in enumerate(snapshot_for_optimization):
 def cost_func(parameters: Parameters, snapshots: [Snapshot], markers):
     result = []
 
-    markers_from_params = np.array([extract_point_from_parameters(
-        parameters=parameters, prefix=f"marker_{i}") for i, marker in enumerate(markers)])
+    diff_markers_from_params = np.array([extract_point_from_parameters(
+        parameters=parameters, prefix=f"diff_marker_{i}") for i, marker in enumerate(markers)])
     for i, snapshot in enumerate(snapshots):
-        position = extract_point_from_parameters(
-            parameters=parameters, prefix=f"pos_{i}")
+        position = snapshot.position + extract_point_from_parameters(
+            parameters=parameters, prefix=f"diff_pos_{i}")
         
         quat_u = extract_point_from_parameters(parameters=parameters, prefix=f"quat_u_{i}")
         quat_w = parameters[f"quat_w_{i}"]
         for ray_it, ray in enumerate(snapshot.rays):
             rotated_ray = quat_w * quat_w * ray + 2 * (quat_w * np.cross(quat_u, ray) + quat_u * np.dot(quat_u, ray)) - np.dot(quat_u, quat_u) * ray
-            pm = markers_from_params[snapshot.marker_indices[ray_it], :] - position
+            pm = markers[snapshot.marker_indices[ray_it]] + diff_markers_from_params[snapshot.marker_indices[ray_it], :] - position
             dot_part = np.dot(rotated_ray, pm)
             norm_part = np.linalg.norm(pm) * np.linalg.norm(rotated_ray)
             value = dot_part / norm_part
@@ -115,10 +116,10 @@ def cost_func(parameters: Parameters, snapshots: [Snapshot], markers):
 def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
     result = []
     markers_from_params = np.array([extract_point_from_parameters(
-        parameters=parameters, prefix=f"marker_{i}") for i, marker in enumerate(markers)])
+        parameters=parameters, prefix=f"diff_marker_{i}") for i, marker in enumerate(markers)])
     for i, snapshot in enumerate(snapshots):
-        position = extract_point_from_parameters(
-            parameters=parameters, prefix=f"pos_{i}")
+        position = snapshot.position + extract_point_from_parameters(
+            parameters=parameters, prefix=f"diff_pos_{i}")
         
         quat_u = extract_point_from_parameters(parameters=parameters, prefix=f"quat_u_{i}")
         quat_w = parameters[f"quat_w_{i}"]
@@ -130,7 +131,7 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
             
             rotated_ray_norm = np.linalg.norm(rotated_ray)
             marker_index = snapshot.marker_indices[ray_it]
-            pm = markers_from_params[marker_index] - position
+            pm = markers[marker_index] + markers_from_params[marker_index] - position
             pm_norm = np.linalg.norm(pm)
             
             dot_part = np.dot(rotated_ray, pm)
@@ -143,8 +144,8 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
             grad_by_marker_i = - grad_by_pos_i
             
             
-            add_point_to_dict(grad_by_name, grad_by_pos_i, f"pos_{i}")
-            add_point_to_dict(grad_by_name, grad_by_marker_i, f"marker_{marker_index}")
+            add_point_to_dict(grad_by_name, grad_by_pos_i, f"diff_pos_{i}")
+            add_point_to_dict(grad_by_name, grad_by_marker_i, f"diff_marker_{marker_index}")
             
             grad_by_w_i = (norm_part * 2 * (np.dot(quat_w * ray + np.cross(quat_u, ray), pm)) - (dot_part / rotated_ray_norm) * (2 * pm_norm * np.dot(rotated_ray, (quat_w * ray + np.cross(quat_u, ray))))) / (norm_part * norm_part)
             grad_by_name[f"quat_w_{i}"] = grad_by_w_i
@@ -168,10 +169,10 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
 
 
 cost_func_before = cost_func(
-    parameters=parameters, snapshots=snapshot_for_optimization, markers=markers)
+    parameters=parameters, snapshots=snapshot_for_optimization, markers=modify_markers)
 
 mini = Minimizer(cost_func, parameters, fcn_args=(
-    synthetic_snapshots, markers))
+    snapshot_for_optimization, modify_markers))
 
 result = mini.minimize(method='leastsq', **
                        {'Dfun': gradient_function, 
@@ -187,13 +188,7 @@ with open('output.txt', 'w') as f:
     
 
 cost_func_after = cost_func(
-    parameters=result.params, snapshots=snapshot_for_optimization, markers=markers)
-
-print(f"Before optimization cost func value: {cost_func_before}")
-print(f"After optimization cost func value: {cost_func_after}")
-
-
-print(f"Func call number: {result.nfev}")
+    parameters=result.params, snapshots=snapshot_for_optimization, markers=modify_markers)
 
 # print(gradient_function(parameters=result.params, snapshots=snapshot_for_optimization, markers=markers))
 
@@ -204,29 +199,36 @@ np.set_printoptions(suppress=True)
 total_positions_error_after = 0
 total_positions_error_before = 0
 
-for i, synt_positional in enumerate(positions):
-    start_position = extract_point_from_parameters(parameters=parameters, prefix=f"pos_{i}")
-    optimized_position = extract_point_from_parameters(parameters=result.params, prefix=f"pos_{i}")
-    
+for i, snapshot in enumerate(modified_snapshots):
+    start_position = snapshot.position
+    diff_optimized_position = extract_point_from_parameters(parameters=result.params, prefix=f"diff_pos_{i}")
+    synt_positional = positions[i]
+    optimized_position = start_position + diff_optimized_position
     total_positions_error_after += np.linalg.norm(optimized_position - synt_positional)
     total_positions_error_before += np.linalg.norm(start_position - synt_positional)
     
-    # print(f"Position {i}; True : {synt_positional}; Optimized: {optimized_position}; Start: {start_position}")
+    print(f"Position {i}; True : {synt_positional}; Optimized: {optimized_position}; Start: {start_position}")
 
 total_markers_error_after = 0
 total_markers_error_before = 0
 
 for i, synt_marker in enumerate(markers):
-    start_marker = extract_point_from_parameters(parameters=parameters, prefix=f"marker_{i}")
-    optimized_marker = extract_point_from_parameters(parameters=result.params, prefix=f"marker_{i}")
+    start_marker_diff = extract_point_from_parameters(parameters=parameters, prefix=f"diff_marker_{i}")
+    optimized_marker_diff = extract_point_from_parameters(parameters=result.params, prefix=f"diff_marker_{i}")
     
-    total_markers_error_after += np.linalg.norm(optimized_marker - synt_marker)
-    total_markers_error_before += np.linalg.norm(start_marker - synt_marker)
+    modify_marker = modify_markers[i]
+    optimized_marker = optimized_marker_diff + modify_marker
+    total_markers_error_after += np.linalg.norm(modify_marker + optimized_marker_diff - synt_marker)
+    total_markers_error_before += np.linalg.norm(modify_marker + start_marker_diff - synt_marker)
     
-    print(f"Marker {i}; True : {synt_marker}; Optimized: {optimized_marker}; Start: {start_marker}")
+    print(f"Marker {i}; True : {synt_marker}; Optimized: {optimized_marker}; Start: {modify_marker}")
 
 print(f"Total positions error before optimization: {total_positions_error_before}")    
 print(f"Total positions error after optimization: {total_positions_error_after}")
 
 print(f"Total markers error before optimization: {total_markers_error_before}")
 print(f"Total markers error after optimization: {total_markers_error_after}")
+
+print(f"Before optimization sum cost func value: {np.sum(cost_func_before)}")
+print(f"After optimization sum cost func value: {np.sum(cost_func_after)}")
+print(f"Func call number: {result.nfev}")
