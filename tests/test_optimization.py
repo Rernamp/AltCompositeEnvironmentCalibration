@@ -53,14 +53,14 @@ for i, position in enumerate(positions):
 
 modified_snapshots = copy.deepcopy(synthetic_snapshots)
 
-max_offset = 0.01
+max_offset = 0.1
 
 for i, snapshot in enumerate(modified_snapshots):
-    # if i <= 0:
-    #     snapshot.position = snapshot.position + \
-    #         np.random.rand(snapshot.position.shape[0]) * max_offset
-    snapshot.position = snapshot.position + \
+    if i >= 1:
+        snapshot.position = snapshot.position + \
             np.random.rand(snapshot.position.shape[0]) * max_offset
+    # snapshot.position = snapshot.position + \
+    #         np.random.rand(snapshot.position.shape[0]) * max_offset
     print(f"Modify position {i} {snapshot.position}")
 
 parameters = Parameters()
@@ -69,22 +69,22 @@ snapshot_for_optimization = modified_snapshots
 
 modify_markers = []
 for i, marker in enumerate(markers):
-    max_marker_offset = 0.01
+    max_marker_offset = 0.1
     
     modify_marker = marker
-    # if i <= 4:
-    #     modify_marker = marker + \
-    #         np.random.rand(marker.shape[0]) * max_marker_offset
+    if i >= 1:
+        modify_marker = marker + \
+            np.random.rand(marker.shape[0]) * max_marker_offset
     
-    modify_marker = marker + \
-        np.random.rand(marker.shape[0]) * max_marker_offset
+    # modify_marker = marker + \
+    #     np.random.rand(marker.shape[0]) * max_marker_offset
     add_point_to_parameters(parameters=parameters,
-                            point=np.zeros(3), prefix=f"diff_marker_{i}", vary=True)
+                            point=np.zeros(3), prefix=f"diff_marker_{i}", vary=(i != 0))
     modify_markers.append(modify_marker)
     
 for i, snapshot in enumerate(snapshot_for_optimization):
     add_point_to_parameters(parameters=parameters,
-                            point=np.zeros(3), prefix=f"diff_pos_{i}", vary=True)
+                            point=np.zeros(3), prefix=f"diff_pos_{i}", vary=(i != 0))
 
 for i, snapshot in enumerate(snapshot_for_optimization):
     add_point_to_parameters(parameters=parameters,
@@ -237,3 +237,5 @@ print(f"Synthetic sum cost func value: {np.sum(cost_func_synt)}")
 print(f"Before optimization sum cost func value: {np.sum(cost_func_before)}")
 print(f"After optimization sum cost func value: {np.sum(cost_func_after)}")
 print(f"Func call number: {result.nfev}")
+
+print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=parameters, snapshots=synthetic_snapshots, markers=markers)))}")
