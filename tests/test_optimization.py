@@ -53,7 +53,7 @@ for i, position in enumerate(positions):
 
 modified_snapshots = copy.deepcopy(synthetic_snapshots)
 
-max_offset = 0.1
+max_offset = 0.01
 
 for i, snapshot in enumerate(modified_snapshots):
     if i >= 1:
@@ -69,7 +69,7 @@ snapshot_for_optimization = modified_snapshots
 
 modify_markers = []
 for i, marker in enumerate(markers):
-    max_marker_offset = 0.1
+    max_marker_offset = 0.01
     
     modify_marker = marker
     if i >= 1:
@@ -92,34 +92,48 @@ for i, snapshot in enumerate(snapshot_for_optimization):
     parameters.add(Parameter(name=f"quat_w_{i}", value=1, vary=False))
 
 
-def cost_func(parameters: Parameters, snapshots: [Snapshot], markers):
+def cost_func(parameters: Parameters, snapshots: [Snapshot], markers, scale: float):
     result = []
 
     diff_markers_from_params = np.array([extract_point_from_parameters(
         parameters=parameters, prefix=f"diff_marker_{i}") for i, marker in enumerate(markers)])
     for i, snapshot in enumerate(snapshots):
-        position = snapshot.position + extract_point_from_parameters(
+        diff_position = extract_point_from_parameters(
             parameters=parameters, prefix=f"diff_pos_{i}")
+        position = snapshot.position + diff_position
         
         quat_u = extract_point_from_parameters(parameters=parameters, prefix=f"quat_u_{i}")
         quat_w = parameters[f"quat_w_{i}"]
         for ray_it, ray in enumerate(snapshot.rays):
             rotated_ray = quat_w * quat_w * ray + 2 * (quat_w * np.cross(quat_u, ray) + quat_u * np.dot(quat_u, ray)) - np.dot(quat_u, quat_u) * ray
-            pm = markers[snapshot.marker_indices[ray_it]] + diff_markers_from_params[snapshot.marker_indices[ray_it], :] - position
+            marker_index = snapshot.marker_indices[ray_it]
+            diff_markers = diff_markers_from_params[marker_index, :]
+            pm = markers[marker_index] + diff_markers - position
             dot_part = np.dot(rotated_ray, pm)
             norm_part = np.linalg.norm(pm) * np.linalg.norm(rotated_ray)
             value = dot_part / norm_part
-            result.append(1 - (value * value))
+            cost_func = 1 - value * value
+            
+            # cost_func += scale * np.dot(diff_markers, diff_markers)
+            # cost_func += scale * np.dot(diff_position, diff_position)
+            
+            # if (marker_index == 0):
+            #     cost_func += scale * np.dot(diff_markers, diff_markers)
+            # if (i == 0):
+            #     cost_func += scale * np.dot(diff_position, diff_position)
+            
+            result.append(cost_func)
     return np.array(result)
 
 
-def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
+def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers, scale: float):
     result = []
     markers_from_params = np.array([extract_point_from_parameters(
         parameters=parameters, prefix=f"diff_marker_{i}") for i, marker in enumerate(markers)])
     for i, snapshot in enumerate(snapshots):
-        position = snapshot.position + extract_point_from_parameters(
+        diff_pos = extract_point_from_parameters(
             parameters=parameters, prefix=f"diff_pos_{i}")
+        position = snapshot.position + diff_pos
         
         quat_u = extract_point_from_parameters(parameters=parameters, prefix=f"quat_u_{i}")
         quat_w = parameters[f"quat_w_{i}"]
@@ -141,8 +155,16 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
             
             grad_by_pos_i = (2 * cost_func) * ((rotated_ray / norm_part) - (
                 dot_part * rotated_ray_norm * pm) / (pm_norm * norm_part * norm_part))
+            
             grad_by_marker_i = - grad_by_pos_i
             
+            # grad_by_marker_i += 2 * scale * markers_from_params[marker_index]
+            # grad_by_pos_i += 2 * scale * diff_pos
+            
+            # if (marker_index == 0):
+            #     grad_by_marker_i += 2 * scale * markers_from_params[marker_index]
+            # if (i == 0):
+            #     grad_by_pos_i += 2 * scale * diff_pos
             
             add_point_to_dict(grad_by_name, grad_by_pos_i, f"diff_pos_{i}")
             add_point_to_dict(grad_by_name, grad_by_marker_i, f"diff_marker_{marker_index}")
@@ -167,14 +189,15 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers):
 
     return np.array(result)
 
+scale = 0.4
 cost_func_synt = cost_func(
-    parameters=parameters, snapshots=synthetic_snapshots, markers=markers)
+    parameters=parameters, snapshots=synthetic_snapshots, markers=markers, scale=scale)
 
 cost_func_before = cost_func(
-    parameters=parameters, snapshots=snapshot_for_optimization, markers=modify_markers)
+    parameters=parameters, snapshots=snapshot_for_optimization, markers=modify_markers, scale=scale)
 
 mini = Minimizer(cost_func, parameters, fcn_args=(
-    snapshot_for_optimization, modify_markers))
+    snapshot_for_optimization, modify_markers, scale))
 
 result = mini.minimize(method='leastsq', **
                        {'Dfun': gradient_function, 
@@ -190,7 +213,7 @@ with open('output.txt', 'w') as f:
     
 
 cost_func_after = cost_func(
-    parameters=result.params, snapshots=snapshot_for_optimization, markers=modify_markers)
+    parameters=result.params, snapshots=snapshot_for_optimization, markers=modify_markers, scale=scale)
 
 # print(gradient_function(parameters=result.params, snapshots=snapshot_for_optimization, markers=markers))
 
@@ -225,7 +248,7 @@ for i, synt_marker in enumerate(markers):
     
     print(f"Marker {i}; True : {synt_marker}; Optimized: {optimized_marker}; Start: {modify_marker}")
 
-print(f"Total positions error before optimization: {total_positions_error_before}")    
+print(f"Total positions error before optimization: {total_positions_error_before}")
 print(f"Total positions error after optimization: {total_positions_error_after}")
 
 print(f"Total markers error before optimization: {total_markers_error_before}")
@@ -238,4 +261,4 @@ print(f"Before optimization sum cost func value: {np.sum(cost_func_before)}")
 print(f"After optimization sum cost func value: {np.sum(cost_func_after)}")
 print(f"Func call number: {result.nfev}")
 
-print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=parameters, snapshots=synthetic_snapshots, markers=markers)))}")
+print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=parameters, snapshots=synthetic_snapshots, markers=markers, scale=scale)))}")
