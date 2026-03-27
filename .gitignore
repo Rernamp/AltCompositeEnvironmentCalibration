@@ -8,3 +8,5 @@
 /temp_input.json
 /temp_output.json
 geogebraScript.txt
+/tests/__pycache__
+/output.txt
