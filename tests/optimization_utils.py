@@ -214,3 +214,34 @@ class ParametersBuilder:
             result.add(Parameter(name=f"quat_w_{i}", value=1, vary=False))
             
         return result
+
+
+def similarity_transform_svd(src, tgt):
+    src_mean = src.mean(axis=0)
+    tgt_mean = tgt.mean(axis=0)
+    
+    src_centered = src - src_mean
+    tgt_centered = tgt - tgt_mean
+    
+    H = src_centered.T @ tgt_centered
+    U, S, Vt = np.linalg.svd(H)
+    
+    R = Vt.T @ U.T
+    
+    if np.linalg.det(R) < 0:
+        Vt[-1, :] *= -1
+        R = Vt.T @ U.T
+    
+    scale = np.sum(S) / np.sum(src_centered ** 2)
+    
+    translation = tgt_mean - scale * (src_mean @ R.T)
+    
+    return scale, R, translation
+
+def recover_target(src_points, tgt_points, query_points=None):
+    scale, rotation, translation = similarity_transform_svd(src_points, tgt_points)
+    
+    if query_points is None:
+        query_points = src_points
+    
+    return scale * (query_points @ rotation.T) + translation

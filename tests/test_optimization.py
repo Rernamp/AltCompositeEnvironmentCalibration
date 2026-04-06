@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from Utils import *
 from scipy.linalg  import orthogonal_procrustes
+from scipy.spatial import procrustes
 
 from optimization_utils import *
 
@@ -121,18 +122,11 @@ print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=param
 original = np.array(original_markers)
 optimized = np.array(optimized_markers)
 
-print(f"optimized_markers: {optimized}")
-print(f"original_markers: {original}")
 
-centroid_orig = np.mean(original, axis=0)
-centroid_opt = np.mean(optimized, axis=0)
+M_aligned = recover_target(optimized_markers, original_markers)
 
-M_orig_centered = original - centroid_orig
-M_opt_centered = optimized - centroid_opt
-
-R, _ = orthogonal_procrustes(M_opt_centered, M_orig_centered)
-
-M_aligned = (M_opt_centered @ R.T) + centroid_orig
+print(f"optimized_markers:\n{optimized}")
+print(f"original_markers:\n{original}")
 
 print("Aligned markers (without scaling):")
 print(M_aligned)
@@ -146,8 +140,7 @@ ax = fig.add_subplot(111, projection='3d')
 ax.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original")
 ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
 ax.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned")
-# ax.scatter(markers_from_env[:,0], markers_from_env[:,1], markers_from_env[:,2], label="markers_from_env")
-
+ax.scatter(markers_from_env[:,0], markers_from_env[:,1], markers_from_env[:,2], label="markers_from_env")
 
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
