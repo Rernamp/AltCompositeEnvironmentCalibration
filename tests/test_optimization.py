@@ -123,7 +123,7 @@ original = np.array(original_markers)
 optimized = np.array(optimized_markers)
 
 
-M_aligned = recover_target(optimized_markers, original_markers)
+M_aligned = recover_target(optimized_markers, markers_from_env)
 
 print(f"optimized_markers:\n{optimized}")
 print(f"original_markers:\n{original}")
@@ -138,7 +138,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 ax.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original")
-ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
+# ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
 ax.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned")
 ax.scatter(markers_from_env[:,0], markers_from_env[:,1], markers_from_env[:,2], label="markers_from_env")
 
