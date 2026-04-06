@@ -91,9 +91,9 @@ def unpackParameters(params, snapshots, markers):
     return pos_offsets, rot_params, marker_offsets
 
 def add_point_to_parameters(parameters: Parameters, point: np.ndarray, prefix: str, vary: bool = True):
-    parameters.add(Parameter(name=f"{prefix}_x", value=point[0], vary=vary))
-    parameters.add(Parameter(name=f"{prefix}_y", value=point[1], vary=vary))
-    parameters.add(Parameter(name=f"{prefix}_z", value=point[2], vary=vary))
+    parameters.add(Parameter(name=f"{prefix}_x", value=point[0], vary=vary, min=-0.1, max=0.1))
+    parameters.add(Parameter(name=f"{prefix}_y", value=point[1], vary=vary, min=-0.1, max=0.1))
+    parameters.add(Parameter(name=f"{prefix}_z", value=point[2], vary=vary, min=-0.1, max=0.1))
     
 def extract_point_from_parameters(parameters: Parameters, prefix: str):
     return np.array([parameters[f"{prefix}_x"], parameters[f"{prefix}_y"], parameters[f"{prefix}_z"]])

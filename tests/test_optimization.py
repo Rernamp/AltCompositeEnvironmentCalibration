@@ -4,95 +4,43 @@ import copy
 import sys
 from random import randrange
 from pathlib import Path
+import matplotlib.pyplot as plt
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from Utils import *
+from scipy.linalg  import orthogonal_procrustes
 
 from optimization_utils import *
 
-def square_grid_points_centered(step, num_elements):
-    side = int(np.sqrt(num_elements))
-    if side * side != num_elements:
-        raise ValueError(f"num_elements ({num_elements})")
-    
-    offset = (side - 1) * step / 2
-    
-    x_coords = np.arange(side) * step - offset
-    y_coords = np.arange(side) * step - offset
-    
-    xx, yy = np.meshgrid(x_coords, y_coords)
-    points = np.column_stack([xx.ravel(), yy.ravel(), np.zeros(num_elements)])
-    
-    return points
 
-markers_from_env = square_grid_points_centered(0.1, 9)
+markers_from_env = square_grid_points_centered(0.5, 9)
 
-offset = 1
-
-positions = []
 
 points_variants = 4
 
-for marker in markers_from_env:
-    # positions.append(marker + np.array([0, 0, offset]))
-    for i in range(points_variants):
-        positions.append(marker + np.array([np.random.randn(), np.random.randn(), offset]))
-positions = np.array(positions)
+rng = np.random.default_rng(123)
 
-
-synthetic_snapshots = []
-
-original_markers = copy.deepcopy(markers_from_env)
-
-for i, marker in enumerate(original_markers):
-    marker += np.random.rand(marker.shape[0]) * 0.01
-    # if i == 0:
-    #     marker += np.random.rand(marker.shape[0]) * 0.01
-        # marker[0] += 0.01
+positions = generate_offset_variants(markers_from_env, np.array([0, 0, 1]), points_variants, 0.01, rng)
+original_markers = generate_offset_variants(markers_from_env, np.array([0, 0, 0]), 1, 0.005, rng)
 
 print(f"Markers: {original_markers}")
 print(f"Positions: {positions}")
 
-for i, position in enumerate(positions):
-    rays = []
-    marker_indices = []
-    for marker_index, marker in enumerate(original_markers):
-        ray = marker - position
-        marker_indices.append(marker_index)
-        rays.append(ray)
-    synthetic_snapshots.append(
-        Snapshot(position=position, rays=rays, marker_indices=marker_indices))
+synthetic_snapshots = generate_snapshots(positions=positions, markers=original_markers)
 
-modified_snapshots = copy.deepcopy(synthetic_snapshots)
+max_offset = 0.005
 
-max_offset = 0.001
+modify_positions = generate_offset_variants(positions, np.array([0, 0, 0]), 1, max_offset, rng)
 
-for i, snapshot in enumerate(modified_snapshots):
-    # if i >= 1:
-    #     snapshot.position = snapshot.position + \
-    #         np.random.rand(snapshot.position.shape[0]) * max_offset
-    snapshot.position = snapshot.position + \
-            np.random.rand(snapshot.position.shape[0]) * max_offset
-    print(f"Modify position {i} {snapshot.position}")
-
-parameters = Parameters()
+modified_snapshots = generate_snapshots(modify_positions, original_markers)
 
 snapshot_for_optimization = modified_snapshots
+parametersBuilder = ParametersBuilder(snapshots=snapshot_for_optimization, markers=markers_from_env)
 
-for i, marker in enumerate(original_markers):
-    add_point_to_parameters(parameters=parameters,
-                            point=np.zeros(3), prefix=f"diff_marker_{i}", vary=True)
-    
-for i, snapshot in enumerate(snapshot_for_optimization):
-    add_point_to_parameters(parameters=parameters,
-                            point=np.zeros(3), prefix=f"diff_pos_{i}", vary=True)
+# parametersBuilder.add_markers_offsets(original_markers - markers_from_env)
 
-for i, snapshot in enumerate(snapshot_for_optimization):
-    add_point_to_parameters(parameters=parameters,
-                            point=np.zeros(snapshot.position.shape), prefix=f"quat_u_{i}", vary=False)
-    parameters.add(Parameter(name=f"quat_w_{i}", value=1, vary=False))
+parameters = parametersBuilder.getResult()
 
-
-scale = 0.001
+scale = 1
 cost_func_synt = cost_func(
     parameters=parameters, snapshots=synthetic_snapshots, markers=original_markers, scale=scale)
 
@@ -140,6 +88,8 @@ for i, snapshot in enumerate(modified_snapshots):
 total_markers_error_after = 0
 total_markers_error_before = 0
 
+optimized_markers = []
+
 for i, synt_marker in enumerate(original_markers):
     start_marker_diff = extract_point_from_parameters(parameters=parameters, prefix=f"diff_marker_{i}")
     optimized_marker_diff = extract_point_from_parameters(parameters=result.params, prefix=f"diff_marker_{i}")
@@ -148,9 +98,9 @@ for i, synt_marker in enumerate(original_markers):
     optimized_marker = optimized_marker_diff + modify_marker
     total_markers_error_after += np.linalg.norm(modify_marker + optimized_marker_diff - synt_marker)
     total_markers_error_before += np.linalg.norm(modify_marker + start_marker_diff - synt_marker)
-    
+    optimized_markers.append(np.array(optimized_marker))
     print(f"Marker {i}; True : {synt_marker}; Optimized: {optimized_marker}; Start: {modify_marker}")
-
+optimized_markers = np.array(optimized_markers)
 print(f"Total positions error before optimization: {total_positions_error_before}")
 print(f"Total positions error after optimization: {total_positions_error_after}")
 
@@ -165,3 +115,43 @@ print(f"After optimization sum cost func value: {np.sum(cost_func_after)}")
 print(f"Func call number: {result.nfev}")
 
 print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=parameters, snapshots=synthetic_snapshots, markers=markers_from_env, scale=scale)))}")
+
+
+
+original = np.array(original_markers)
+optimized = np.array(optimized_markers)
+
+print(f"optimized_markers: {optimized}")
+print(f"original_markers: {original}")
+
+centroid_orig = np.mean(original, axis=0)
+centroid_opt = np.mean(optimized, axis=0)
+
+M_orig_centered = original - centroid_orig
+M_opt_centered = optimized - centroid_opt
+
+R, _ = orthogonal_procrustes(M_opt_centered, M_orig_centered)
+
+M_aligned = (M_opt_centered @ R.T) + centroid_orig
+
+print("Aligned markers (without scaling):")
+print(M_aligned)
+
+print(f"Total error by markers before optimization: {np.sum(np.linalg.norm(original - np.array(markers_from_env), axis=1))}")
+print(f"Total error by markers after optimization: {np.sum(np.linalg.norm(original - M_aligned, axis=1))}")
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+ax.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original")
+ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
+ax.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned")
+# ax.scatter(markers_from_env[:,0], markers_from_env[:,1], markers_from_env[:,2], label="markers_from_env")
+
+
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
+ax.legend()
+
+plt.show()
