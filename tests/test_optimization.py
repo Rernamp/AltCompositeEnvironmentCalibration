@@ -22,6 +22,7 @@ rng = np.random.default_rng(123)
 
 positions = generate_offset_variants(markers_from_env, np.array([0, 0, 1]), points_variants, 0.01, rng)
 original_markers = generate_offset_variants(markers_from_env, np.array([0, 0, 0]), 1, 0.005, rng)
+original_markers[0,:] = markers_from_env[0,:]
 
 print(f"Markers: {original_markers}")
 print(f"Positions: {positions}")
@@ -117,6 +118,43 @@ print(f"Func call number: {result.nfev}")
 
 print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=parameters, snapshots=synthetic_snapshots, markers=markers_from_env, scale=scale)))}")
 
+def add_projections(ax, points_3d, label='Points', color=None, alpha=0.6, marker='o', size=30):
+    points_3d = np.asarray(points_3d)
+    
+    xy = points_3d[:, :2]      # OXY
+    xz = points_3d[:, [0, 2]]  # OXZ
+    yz = points_3d[:, 1:]      # OYZ
+    
+    ax[0].scatter(xy[:, 0], xy[:, 1], label=label, color=color, 
+                 alpha=alpha, marker=marker, s=size)
+    ax[1].scatter(xz[:, 0], xz[:, 1], label=label, color=color, 
+                 alpha=alpha, marker=marker, s=size)
+    ax[2].scatter(yz[:, 0], yz[:, 1], label=label, color=color, 
+                 alpha=alpha, marker=marker, s=size)
+
+def create_projection_figure(title="3D Points Projections"):
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    
+    planes = ['OXY (Z=0)', 'OXZ (Y=0)', 'OYZ (X=0)']
+    for i, ax in enumerate(axes):
+        ax.set_title(planes[i])
+        ax.set_xlabel('X' if i != 2 else 'Y')
+        ax.set_ylabel('Y' if i == 0 else 'Z')
+        ax.grid(True, alpha=0.3)
+    
+    fig.suptitle(title, fontsize=14)
+    return fig, axes
+
+fig, axes = create_projection_figure("Markers")
+
+
+add_projections(axes, original_markers, label='original_markers', color='purple')
+add_projections(axes, optimized_markers, label='optimized_markers', color='orange')
+add_projections(axes, markers_from_env, label='markers_from_env', color='green')
+
+axes[0].legend()
+axes[1].legend()
+axes[2].legend()
 
 
 original = np.array(original_markers)
@@ -138,8 +176,8 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 ax.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original")
-# ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
-ax.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned")
+ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
+# ax.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned")
 ax.scatter(markers_from_env[:,0], markers_from_env[:,1], markers_from_env[:,2], label="markers_from_env")
 
 ax.set_xlabel('X')
