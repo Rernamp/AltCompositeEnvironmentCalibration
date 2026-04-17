@@ -20,41 +20,30 @@ points_variants = 4
 
 rng = np.random.default_rng(123)
 
-# positions = generate_offset_variants(markers_from_env, np.array([0, 0, 1]), points_variants, 0.01, rng)
-# original_markers = generate_offset_variants(markers_from_env, np.array([0, 0, 0]), 1, 0.005, rng)
-
-# print(f"Markers: {original_markers}")
-# print(f"Positions: {positions}")
-
-# synthetic_snapshots = generate_snapshots(positions=positions, markers=original_markers)
 
 max_offset = 0.005
-
-# modify_positions = generate_offset_variants(positions, np.array([0, 0, 0]), 1, max_offset, rng)
-
-# modified_snapshots = generate_snapshots(modify_positions, original_markers)
 
 guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#002.json")
 markers = np.array(markers)
 original_markers = markers + np.array(guess)
 
-# snapshot_for_optimization = modified_snapshots
-parametersBuilder = ParametersBuilder(snapshots=snapshots, markers=markers)
+snapshot_for_optimization = copy.deepcopy(snapshots)
+
+for snapshot in snapshot_for_optimization:
+    for i, ray in enumerate(snapshot.rays):
+        ray = markers[snapshot.marker_indices[i]] - snapshot.position
+        ray /= np.linalg.norm(ray)        
+
+parametersBuilder = ParametersBuilder(snapshots=snapshot_for_optimization, markers=markers)
 
 # parametersBuilder.add_markers_offsets(original_markers - markers_from_env)
 
 parameters = parametersBuilder.getResult()
 
 scale = 1
-# cost_func_synt = cost_func(
-#     parameters=parameters, snapshots=synthetic_snapshots, markers=original_markers, scale=scale)
-
-# cost_func_before = cost_func(
-#     parameters=parameters, snapshots=snapshot_for_optimization, markers=markers_from_env, scale=scale)
-
 
 mini = Minimizer(cost_func, parameters, fcn_args=(
-    snapshots, markers, scale))
+    snapshot_for_optimization, markers, scale))
 
 # result = mini.minimize(method='leastsq', **
 #                        {'Dfun': gradient_function, 
@@ -68,28 +57,12 @@ result = mini.minimize(method='leastsq', **
 with open('output.txt', 'w') as f:
     f.write(fit_report(result))
     
-
-# cost_func_after = cost_func(
-#     parameters=result.params, snapshots=snapshot_for_optimization, markers=markers_from_env, scale=scale)
-
-# print(gradient_function(parameters=result.params, snapshots=snapshot_for_optimization, markers=markers))
-
 np.set_printoptions(precision=4)
 np.set_printoptions(suppress=True)
 
 
 total_positions_error_after = 0
 total_positions_error_before = 0
-
-# for i, snapshot in enumerate(snapshots):
-#     start_position = snapshot.position
-#     diff_optimized_position = extract_point_from_parameters(parameters=result.params, prefix=f"diff_pos_{i}")
-#     synt_positional = positions[i]
-#     optimized_position = start_position + diff_optimized_position
-#     total_positions_error_after += np.linalg.norm(optimized_position - synt_positional)
-#     total_positions_error_before += np.linalg.norm(start_position - synt_positional)
-    
-#     print(f"Position {i}; True : {synt_positional}; Optimized: {optimized_position}; Start: {start_position}")
 
 total_markers_error_after = 0
 total_markers_error_before = 0
@@ -108,22 +81,12 @@ for i, synt_marker in enumerate(original_markers):
     print(f"Marker {i}; True : {synt_marker}; Optimized: {optimized_marker}; Start: {modify_marker}")
 optimized_markers = np.array(optimized_markers)
 
-# print(f"Total positions error before optimization: {total_positions_error_before}")
-# print(f"Total positions error after optimization: {total_positions_error_after}")
-
 print(f"Total markers error before optimization: {total_markers_error_before}")
 print(f"Total markers error after optimization: {total_markers_error_after}")
 
 print()
 
-# print(f"Synthetic sum cost func value: {np.sum(cost_func_synt)}")
-# print(f"Before optimization sum cost func value: {np.sum(cost_func_before)}")
-# print(f"After optimization sum cost func value: {np.sum(cost_func_after)}")
 print(f"Func call number: {result.nfev}")
-
-# print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=parameters, snapshots=synthetic_snapshots, markers=markers_from_env, scale=scale)))}")
-
-
 
 original = np.array(original_markers)
 optimized = np.array(optimized_markers)
@@ -144,7 +107,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 ax.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original")
-# ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
+ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
 ax.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned")
 ax.scatter(markers[:,0], markers[:,1], markers[:,2], label="markers_from_env")
 

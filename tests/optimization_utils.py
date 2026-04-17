@@ -202,7 +202,7 @@ class ParametersBuilder:
         
         for i, marker in enumerate(self.markers):
             add_point_to_parameters(parameters=result,
-                                    point=self.marker_offsets[i, :], prefix=f"diff_marker_{i}", vary=(i!=0))
+                                    point=self.marker_offsets[i, :], prefix=f"diff_marker_{i}", vary=True)
             
         for i, snapshot in enumerate(self.snapshots):
             add_point_to_parameters(parameters=result,
