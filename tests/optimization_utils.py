@@ -41,8 +41,8 @@ def cost_func(parameters: Parameters, snapshots: [Snapshot], markers, scale: flo
 
             result.append(cost_func)
     
-    # for value in diff_markers_from_params.flatten():
-    #     result.append(scale * value)
+    for value in diff_markers_from_params.flatten():
+        result.append(scale * value)
     
     np_result = np.array(result)
     
@@ -104,13 +104,13 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers, sc
             result.append([grad_by_name[name]
                           for name in parameters if parameters[name].vary])
 
-    # for i, diff_marker in enumerate(markers_from_params): 
-    #         for coordinate in ["x", "y", "z"]:
-    #             grad_by_name = {
-    #                     parameter: 0 for parameter in parameters.valuesdict()}
-    #             grad_by_name[f"diff_marker_{i}_{coordinate}"]  = scale
-    #             result.append([grad_by_name[name]
-    #                             for name in parameters if parameters[name].vary])
+    for i, diff_marker in enumerate(markers_from_params): 
+            for coordinate in ["x", "y", "z"]:
+                grad_by_name = {
+                        parameter: 0 for parameter in parameters.valuesdict()}
+                grad_by_name[f"diff_marker_{i}_{coordinate}"]  = scale
+                result.append([grad_by_name[name]
+                                for name in parameters if parameters[name].vary])
                 
         
         # grad_by_name[f"diff_marker_{i}"] = 2 * scale * diff_marker
