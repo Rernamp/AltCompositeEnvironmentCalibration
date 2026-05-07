@@ -190,13 +190,13 @@ $#pm_norm_nabla_by_m_f = #nabla_m norm(#pm_ex)$
 #let nabla_m_to_pm = $#nabla_m norm(#pm)$
 
 #{    
-    let pm_dot_nambla_m_to_pm = $((#pm) dot #nabla_m) * (#pm)$
+    let pm_dot_nabla_m_to_pm = $((#pm) dot #nabla_m) * (#pm)$
     let pm_times_nabla_m_to_pm = $(#pm) times (#nabla_m times (#pm))$
-    $#nabla_m_to_pm = #nabla_m ((#pm) dot (#pm)) = 2 (#pm_dot_nambla_m_to_pm + #pm_times_nabla_m_to_pm$
+    $#nabla_m_to_pm = (#nabla_m ((#pm) dot (#pm))) / (2 norm(#pm)) = (2 (#pm_dot_nabla_m_to_pm + #pm_times_nabla_m_to_pm)) / (2 norm(#pm))$
 
     parbreak()
 
-    $#pm_dot_nambla_m_to_pm = #pm$
+    $#pm_dot_nabla_m_to_pm = #pm$
 
     parbreak()
 
@@ -287,7 +287,7 @@ $#deriv_w #cost_func_dot_part_f = #deriv_w #cost_func_dot_part_ex = (#deriv_w #R
     $#deriv_w #cost_func_f = (#cost_func_norms_part_f * #deriv_w #cost_func_dot_part_f - #cost_func_dot_part_f * #deriv_w #cost_func_norms_part_f) / (#cost_func_norms_part_f^2)$
 )
 
-= Вывод градиентаа по #u
+= Вывод градиента по #u
 
 == Вывод градиента скалярного произведения по #u
 #let nabla_u = $nabla_#u$

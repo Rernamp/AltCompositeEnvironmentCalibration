@@ -86,7 +86,7 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers, sc
             add_point_to_dict(grad_by_name, grad_by_pos_i, f"diff_pos_{i}")
             add_point_to_dict(grad_by_name, grad_by_marker_i, f"diff_marker_{marker_index}")
 
-            grad_by_w_i = (norm_part * 2 * (np.dot(quat_w * ray + np.cross(quat_u, ray), pm)) - (dot_part / rotated_ray_norm) * (2 * pm_norm * np.dot(rotated_ray, (quat_w * ray + np.cross(quat_u, ray))))) / (norm_part * norm_part)
+            grad_by_w_i = -(norm_part * 2 * (np.dot(quat_w * ray + np.cross(quat_u, ray), pm)) - (dot_part / rotated_ray_norm) * (2 * pm_norm * np.dot(rotated_ray, (quat_w * ray + np.cross(quat_u, ray))))) / (norm_part * norm_part)
             grad_by_name[f"quat_w_{i}"] = grad_by_w_i
 
             grad_by_u_i_dot_part = np.cross(pm, -4 * quat_w * ray - 4 * np.cross(quat_u, ray))  \
@@ -98,7 +98,7 @@ def gradient_function(parameters: Parameters, snapshots: [Snapshot], markers, sc
                 - 2 * ray * np.dot(rotated_ray, quat_u)    \
                 )
 
-            grad_by_u_i = (norm_part * grad_by_u_i_dot_part - dot_part * grad_by_u_i_norm_part) / (norm_part * norm_part)
+            grad_by_u_i = -(norm_part * grad_by_u_i_dot_part - dot_part * grad_by_u_i_norm_part) / (norm_part * norm_part)
             add_point_to_dict(grad_by_name, grad_by_u_i, f"quat_u_{i}")
 
             result.append([grad_by_name[name]
@@ -173,8 +173,8 @@ def generate_parameters(positions: np.ndarray, markers: np.ndarray):
 
     for i, snapshot in enumerate(positions):
         add_point_to_parameters(parameters=parameters,
-                                point=np.zeros(snapshot.position.shape), prefix=f"quat_u_{i}", vary=False)
-        parameters.add(Parameter(name=f"quat_w_{i}", value=1, vary=False))
+                                point=np.zeros(snapshot.position.shape), prefix=f"quat_u_{i}", vary=True)
+        parameters.add(Parameter(name=f"quat_w_{i}", value=1, vary=True))
     
     return parameters
 
