@@ -14,7 +14,7 @@ from optimization_utils import *
 
 
 
-guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#002.json")
+guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#001.json")
 markers = np.array(markers)
 original_markers = markers + np.array(guess)
 
@@ -126,32 +126,48 @@ print()
 
 original = np.array(original_markers)
 optimized = np.array(optimized_markers)
+markers_arr = np.array(markers)
 
+# Fit env markers into the optimized frame, then un-apply the gauge transform
+# to recover per-marker displacements in the env frame.
+# optimized ≈ scale * R * env + T  (scale+translation gauge drift)
+# residuals in optimized frame = optimized - fitted_env ≈ scale * true_displacement
+# un-apply scale and rotation → displacements in env frame
+scale_gauge, R_gauge, t_gauge = similarity_transform_svd(markers_arr, optimized)
+fitted_env = scale_gauge * (markers_arr @ R_gauge.T) + t_gauge
+rough_displacements = (1 / scale_gauge) * ((optimized - fitted_env) @ R_gauge)
 
-M_aligned = recover_target(optimized_markers, markers)
+# Pass 2: refit using only inliers so displaced markers don't skew gauge removal.
+# Tukey fences on residual norms — robust to up to ~25% displaced markers.
+residual_norms = np.linalg.norm(rough_displacements, axis=1)
+q1, q3 = np.percentile(residual_norms, [25, 75])
+inliers = residual_norms <= q3 + 1.5 * (q3 - q1)
+
+scale_gauge, R_gauge, t_gauge = similarity_transform_svd(markers_arr[inliers], optimized[inliers])
+fitted_env_all = scale_gauge * (markers_arr @ R_gauge.T) + t_gauge
+estimated_displacements = (1 / scale_gauge) * ((optimized - fitted_env_all) @ R_gauge)
+estimated_markers = markers_arr + estimated_displacements
+
+print(f"Detected displaced markers (indices): {np.where(~inliers)[0].tolist()}")
+estimated_markers = markers_arr + estimated_displacements
 
 print(f"optimized_markers:\n{optimized}")
 print(f"original_markers:\n{original}")
 
-print("Aligned markers (without scaling):")
-print(M_aligned)
+print("Estimated displacements per marker:")
+print(estimated_displacements)
 
-print(f"Total error by markers before optimization: {np.sum(np.linalg.norm(original - np.array(markers), axis=1))}")
-print(f"Total error by markers after optimization: {np.sum(np.linalg.norm(original - M_aligned, axis=1))}")
+print("Estimated marker positions:")
+print(estimated_markers)
 
-# Create offset markers with fixed vector
-offset_vector = np.array([0, 0.0115, 0])  # Fixed offset vector
-optimized_markers_offset = optimized_markers + offset_vector
-
-print(f"\nOffset vector applied: {offset_vector}")
+print(f"Total error by markers before optimization: {np.sum(np.linalg.norm(original - markers_arr, axis=1))}")
+print(f"Total error by markers after optimization:  {np.sum(np.linalg.norm(original - estimated_markers, axis=1))}")
 
 # 3D view on separate figure
 fig_3d = plt.figure(figsize=(10, 8))
 ax_3d = fig_3d.add_subplot(111, projection='3d')
 ax_3d.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original", alpha=0.6)
-# ax_3d.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized", alpha=0.6)
-ax_3d.scatter(optimized_markers_offset[:,0], optimized_markers_offset[:,1], optimized_markers_offset[:,2], label="Optimized + Offset", alpha=0.6)
-ax_3d.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned", alpha=0.6)
+ax_3d.scatter(estimated_markers[:,0], estimated_markers[:,1], estimated_markers[:,2], label="Estimated", alpha=0.6)
 ax_3d.scatter(markers[:,0], markers[:,1], markers[:,2], label="markers_from_env", alpha=0.6)
 ax_3d.set_xlabel('X')
 ax_3d.set_ylabel('Y')
@@ -165,9 +181,7 @@ fig_proj = plt.figure(figsize=(14, 10))
 # OXY plane projection (Z=0)
 ax_xy = fig_proj.add_subplot(2, 2, 1)
 ax_xy.scatter(original_markers[:,0], original_markers[:,1], label="Original", alpha=0.6)
-# ax_xy.scatter(optimized_markers[:,0], optimized_markers[:,1], label="Optimized", alpha=0.6)
-ax_xy.scatter(optimized_markers_offset[:,0], optimized_markers_offset[:,1], label="Optimized + Offset", alpha=0.6)
-ax_xy.scatter(M_aligned[:,0], M_aligned[:,1], label="Aligned", alpha=0.6)
+ax_xy.scatter(estimated_markers[:,0], estimated_markers[:,1], label="Estimated", alpha=0.6)
 ax_xy.scatter(markers[:,0], markers[:,1], label="markers_from_env", alpha=0.6)
 ax_xy.set_xlabel('X')
 ax_xy.set_ylabel('Y')
@@ -178,9 +192,7 @@ ax_xy.grid(True)
 # OXZ plane projection (Y=0)
 ax_xz = fig_proj.add_subplot(2, 2, 2)
 ax_xz.scatter(original_markers[:,0], original_markers[:,2], label="Original", alpha=0.6)
-# ax_xz.scatter(optimized_markers[:,0], optimized_markers[:,2], label="Optimized", alpha=0.6)
-ax_xz.scatter(optimized_markers_offset[:,0], optimized_markers_offset[:,2], label="Optimized + Offset", alpha=0.6)
-ax_xz.scatter(M_aligned[:,0], M_aligned[:,2], label="Aligned", alpha=0.6)
+ax_xz.scatter(estimated_markers[:,0], estimated_markers[:,2], label="Estimated", alpha=0.6)
 ax_xz.scatter(markers[:,0], markers[:,2], label="markers_from_env", alpha=0.6)
 ax_xz.set_xlabel('X')
 ax_xz.set_ylabel('Z')
@@ -191,9 +203,7 @@ ax_xz.grid(True)
 # OYZ plane projection (X=0)
 ax_yz = fig_proj.add_subplot(2, 2, 3)
 ax_yz.scatter(original_markers[:,1], original_markers[:,2], label="Original", alpha=0.6)
-# ax_yz.scatter(optimized_markers[:,1], optimized_markers[:,2], label="Optimized", alpha=0.6)
-ax_yz.scatter(optimized_markers_offset[:,1], optimized_markers_offset[:,2], label="Optimized + Offset", alpha=0.6)
-ax_yz.scatter(M_aligned[:,1], M_aligned[:,2], label="Aligned", alpha=0.6)
+ax_yz.scatter(estimated_markers[:,1], estimated_markers[:,2], label="Estimated", alpha=0.6)
 ax_yz.scatter(markers[:,1], markers[:,2], label="markers_from_env", alpha=0.6)
 ax_yz.set_xlabel('Y')
 ax_yz.set_ylabel('Z')

@@ -173,8 +173,8 @@ def generate_parameters(positions: np.ndarray, markers: np.ndarray):
 
     for i, snapshot in enumerate(positions):
         add_point_to_parameters(parameters=parameters,
-                                point=np.zeros(snapshot.position.shape), prefix=f"quat_u_{i}", vary=True)
-        parameters.add(Parameter(name=f"quat_w_{i}", value=1, vary=True))
+                                point=np.zeros(snapshot.position.shape), prefix=f"quat_u_{i}", vary=False)
+        parameters.add(Parameter(name=f"quat_w_{i}", value=1, vary=False))
     
     return parameters
 
