@@ -11,6 +11,25 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "Python Debugger: Current File with argumets",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "${input:folderPath}"
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "folderPath",
+            "type": "promptString",
+            "description": "Path to folder with .json dump files",
+            "default": "dataset/allAxis_1Marker_fix3"
         }
     ]
 }

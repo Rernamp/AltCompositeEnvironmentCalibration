@@ -7,14 +7,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from Utils import *
-from scipy.linalg  import orthogonal_procrustes
-from scipy.spatial import procrustes
-
 from optimization_utils import *
 
 
 
-guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#001.json")
+guess, snapshots, markers = read_dump("dataset/allAxis_1Marker_fix3/#002.json")
 markers = np.array(markers)
 original_markers = markers + np.array(guess)
 
@@ -128,28 +125,8 @@ original = np.array(original_markers)
 optimized = np.array(optimized_markers)
 markers_arr = np.array(markers)
 
-# Fit env markers into the optimized frame, then un-apply the gauge transform
-# to recover per-marker displacements in the env frame.
-# optimized ≈ scale * R * env + T  (scale+translation gauge drift)
-# residuals in optimized frame = optimized - fitted_env ≈ scale * true_displacement
-# un-apply scale and rotation → displacements in env frame
-scale_gauge, R_gauge, t_gauge = similarity_transform_svd(markers_arr, optimized)
-fitted_env = scale_gauge * (markers_arr @ R_gauge.T) + t_gauge
-rough_displacements = (1 / scale_gauge) * ((optimized - fitted_env) @ R_gauge)
-
-# Pass 2: refit using only inliers so displaced markers don't skew gauge removal.
-# Tukey fences on residual norms — robust to up to ~25% displaced markers.
-residual_norms = np.linalg.norm(rough_displacements, axis=1)
-q1, q3 = np.percentile(residual_norms, [25, 75])
-inliers = residual_norms <= q3 + 1.5 * (q3 - q1)
-
-scale_gauge, R_gauge, t_gauge = similarity_transform_svd(markers_arr[inliers], optimized[inliers])
-fitted_env_all = scale_gauge * (markers_arr @ R_gauge.T) + t_gauge
-estimated_displacements = (1 / scale_gauge) * ((optimized - fitted_env_all) @ R_gauge)
-estimated_markers = markers_arr + estimated_displacements
-
+estimated_markers, estimated_displacements, inliers = align_optimized_markers(markers_arr, optimized)
 print(f"Detected displaced markers (indices): {np.where(~inliers)[0].tolist()}")
-estimated_markers = markers_arr + estimated_displacements
 
 print(f"optimized_markers:\n{optimized}")
 print(f"original_markers:\n{original}")

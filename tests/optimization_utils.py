@@ -240,8 +240,28 @@ def similarity_transform_svd(src, tgt):
 
 def recover_target(src_points, tgt_points, query_points=None):
     scale, rotation, translation = similarity_transform_svd(src_points, tgt_points)
-    
+
     if query_points is None:
         query_points = src_points
-    
+
     return scale * (query_points @ rotation.T) + translation
+
+
+def align_optimized_markers(env_markers: np.ndarray, optimized_markers: np.ndarray):
+    # Pass 1: rough gauge removal (scale + translation drift from optimization)
+    scale_gauge, R_gauge, t_gauge = similarity_transform_svd(env_markers, optimized_markers)
+    fitted_env = scale_gauge * (env_markers @ R_gauge.T) + t_gauge
+    rough_displacements = (1 / scale_gauge) * ((optimized_markers - fitted_env) @ R_gauge)
+
+    # Pass 2: refit using only inliers so displaced markers don't skew gauge removal.
+    # Tukey fences on residual norms — robust to up to ~25% displaced markers.
+    residual_norms = np.linalg.norm(rough_displacements, axis=1)
+    q1, q3 = np.percentile(residual_norms, [25, 75])
+    inliers = residual_norms <= q3 + 1.5 * (q3 - q1)
+
+    scale_gauge, R_gauge, t_gauge = similarity_transform_svd(env_markers[inliers], optimized_markers[inliers])
+    fitted_env_all = scale_gauge * (env_markers @ R_gauge.T) + t_gauge
+    estimated_displacements = (1 / scale_gauge) * ((optimized_markers - fitted_env_all) @ R_gauge)
+    estimated_markers = env_markers + estimated_displacements
+
+    return estimated_markers, estimated_displacements, inliers
