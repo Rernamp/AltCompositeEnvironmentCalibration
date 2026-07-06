@@ -3,10 +3,16 @@ import numpy as np
 import copy
 import sys
 from pathlib import Path
-import matplotlib.pyplot as plt
+import rerun as rr
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from Utils import *
 from optimization_utils import *
+
+RRD_PATH = str(Path(__file__).parent / "rrd_dumps" / "test_optimization_real_rays.rrd")
+Path(RRD_PATH).parent.mkdir(parents=True, exist_ok=True)
+rr.init("test_optimization_real_rays", spawn=False)
+rr.save(RRD_PATH)
+rr.send_blueprint(make_default_blueprint())
 
 
 DUMP_PATH = "dataset/allAxis_1Marker_fix3/#002.json"
@@ -22,7 +28,24 @@ parameters = parametersBuilder.getResult()
 
 scale = 0
 
-mini = Minimizer(cost_func, parameters, fcn_args=(snapshot_for_optimization, markers, scale))
+# Ideal cost: fix markers at their true (guessed) positions and re-fit only the
+# camera positions to the real (measured) rays. This is the best achievable cost
+# given real ray noise, i.e. "as if all rays matched" with correct marker positions.
+ideal_params = copy.deepcopy(parameters)
+for i, marker in enumerate(markers):
+    correct_diff = original_markers[i] - marker
+    ideal_params[f"diff_marker_{i}_x"].set(value=correct_diff[0], vary=False)
+    ideal_params[f"diff_marker_{i}_y"].set(value=correct_diff[1], vary=False)
+    ideal_params[f"diff_marker_{i}_z"].set(value=correct_diff[2], vary=False)
+
+ideal_mini = Minimizer(cost_func, ideal_params, fcn_args=(snapshot_for_optimization, markers, scale),
+    iter_cb=make_optimization_iter_cb(timeline="ideal_iteration", entity_prefix="ideal/"))
+ideal_result = ideal_mini.minimize(method='leastsq', Dfun=gradient_function)
+cost_ideal = cost_func(ideal_result.params, snapshot_for_optimization, markers, scale)
+print(f"Ideal cost function value (markers fixed at true positions, positions re-fit to real rays), sum of squares: {np.sum(cost_ideal**2):.6e}")
+
+mini = Minimizer(cost_func, parameters, fcn_args=(snapshot_for_optimization, markers, scale),
+    iter_cb=make_optimization_iter_cb())
 result = mini.minimize(method='leastsq', **{'Dfun': gradient_function})
 
 with open('output.txt', 'w') as f:
@@ -74,52 +97,9 @@ print(estimated_displacements)
 print(f"\nTotal error by markers before optimization: {np.sum(np.linalg.norm(original_markers - markers, axis=1)):.6f}")
 print(f"Total error by markers after optimization:  {np.sum(np.linalg.norm(original_markers - estimated_markers, axis=1)):.6f}")
 
-# 3D view
-fig_3d = plt.figure(figsize=(10, 8))
-ax_3d = fig_3d.add_subplot(111, projection='3d')
-ax_3d.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original", alpha=0.6)
-ax_3d.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized (raw)", alpha=0.6)
-ax_3d.scatter(estimated_markers[:,0], estimated_markers[:,1], estimated_markers[:,2], label="Estimated (aligned)", alpha=0.6)
-ax_3d.scatter(markers[:,0], markers[:,1], markers[:,2], label="markers_from_env", alpha=0.6)
-ax_3d.set_xlabel('X')
-ax_3d.set_ylabel('Y')
-ax_3d.set_zlabel('Z')
-ax_3d.legend()
-ax_3d.set_title('3D View')
+log_points3d("world/final/original", original_markers, colors=[255, 0, 0])
+log_points3d("world/final/optimized_raw", optimized_markers, colors=[255, 255, 0])
+log_points3d("world/final/estimated", estimated_markers, colors=[0, 255, 0])
+log_points3d("world/final/markers_from_env", markers, colors=[0, 0, 255])
 
-# Plane projections
-fig_proj = plt.figure(figsize=(14, 10))
-
-ax_xy = fig_proj.add_subplot(2, 2, 1)
-ax_xy.scatter(original_markers[:,0], original_markers[:,1], label="Original", alpha=0.6)
-ax_xy.scatter(estimated_markers[:,0], estimated_markers[:,1], label="Estimated", alpha=0.6)
-ax_xy.scatter(markers[:,0], markers[:,1], label="markers_from_env", alpha=0.6)
-ax_xy.set_xlabel('X')
-ax_xy.set_ylabel('Y')
-ax_xy.legend()
-ax_xy.set_title('OXY Plane Projection')
-ax_xy.grid(True)
-
-ax_xz = fig_proj.add_subplot(2, 2, 2)
-ax_xz.scatter(original_markers[:,0], original_markers[:,2], label="Original", alpha=0.6)
-ax_xz.scatter(estimated_markers[:,0], estimated_markers[:,2], label="Estimated", alpha=0.6)
-ax_xz.scatter(markers[:,0], markers[:,2], label="markers_from_env", alpha=0.6)
-ax_xz.set_xlabel('X')
-ax_xz.set_ylabel('Z')
-ax_xz.legend()
-ax_xz.set_title('OXZ Plane Projection')
-ax_xz.grid(True)
-
-ax_yz = fig_proj.add_subplot(2, 2, 3)
-ax_yz.scatter(original_markers[:,1], original_markers[:,2], label="Original", alpha=0.6)
-ax_yz.scatter(estimated_markers[:,1], estimated_markers[:,2], label="Estimated", alpha=0.6)
-ax_yz.scatter(markers[:,1], markers[:,2], label="markers_from_env", alpha=0.6)
-ax_yz.set_xlabel('Y')
-ax_yz.set_ylabel('Z')
-ax_yz.legend()
-ax_yz.set_title('OYZ Plane Projection')
-ax_yz.grid(True)
-
-fig_proj.tight_layout()
-fig_3d.tight_layout()
-plt.show()
+print(f"Rerun dump saved to {RRD_PATH}")

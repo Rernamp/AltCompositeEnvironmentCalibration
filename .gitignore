@@ -10,3 +10,4 @@
 geogebraScript.txt
 /tests/__pycache__
 /output.txt
+/tests/rrd_dumps/

@@ -4,13 +4,19 @@ import copy
 import sys
 from random import randrange
 from pathlib import Path
-import matplotlib.pyplot as plt
+import rerun as rr
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from Utils import *
 from scipy.linalg  import orthogonal_procrustes
 from scipy.spatial import procrustes
 
 from optimization_utils import *
+
+RRD_PATH = str(Path(__file__).parent / "rrd_dumps" / "test_optimization.rrd")
+Path(RRD_PATH).parent.mkdir(parents=True, exist_ok=True)
+rr.init("test_optimization", spawn=False)
+rr.save(RRD_PATH)
+rr.send_blueprint(make_default_blueprint())
 
 
 markers_from_env = square_grid_points_centered(0.5, 9)
@@ -49,8 +55,11 @@ cost_func_synt = cost_func(
 cost_func_before = cost_func(
     parameters=parameters, snapshots=snapshot_for_optimization, markers=markers_from_env, scale=scale)
 
+print(f"Ideal cost function value (as if all rays matched, synthetic data), sum of squares: {np.sum(cost_func_synt**2):.6e}")
+
 mini = Minimizer(cost_func, parameters, fcn_args=(
-    snapshot_for_optimization, markers_from_env, scale))
+    snapshot_for_optimization, markers_from_env, scale),
+    iter_cb=make_optimization_iter_cb())
 
 # result = mini.minimize(method='leastsq', **
 #                        {'Dfun': gradient_function, 
@@ -118,48 +127,8 @@ print(f"Func call number: {result.nfev}")
 
 print(f"Grad func in synt data {np.sum(np.sum(gradient_function(parameters=parameters, snapshots=synthetic_snapshots, markers=markers_from_env, scale=scale)))}")
 
-def add_projections(ax, points_3d, label='Points', color=None, alpha=0.6, marker='o', size=30):
-    points_3d = np.asarray(points_3d)
-    
-    xy = points_3d[:, :2]      # OXY
-    xz = points_3d[:, [0, 2]]  # OXZ
-    yz = points_3d[:, 1:]      # OYZ
-    
-    ax[0].scatter(xy[:, 0], xy[:, 1], label=label, color=color, 
-                 alpha=alpha, marker=marker, s=size)
-    ax[1].scatter(xz[:, 0], xz[:, 1], label=label, color=color, 
-                 alpha=alpha, marker=marker, s=size)
-    ax[2].scatter(yz[:, 0], yz[:, 1], label=label, color=color, 
-                 alpha=alpha, marker=marker, s=size)
-
-def create_projection_figure(title="3D Points Projections"):
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    
-    planes = ['OXY (Z=0)', 'OXZ (Y=0)', 'OYZ (X=0)']
-    for i, ax in enumerate(axes):
-        ax.set_title(planes[i])
-        ax.set_xlabel('X' if i != 2 else 'Y')
-        ax.set_ylabel('Y' if i == 0 else 'Z')
-        ax.grid(True, alpha=0.3)
-    
-    fig.suptitle(title, fontsize=14)
-    return fig, axes
-
-fig, axes = create_projection_figure("Markers")
-
-
-add_projections(axes, original_markers, label='original_markers', color='purple')
-add_projections(axes, optimized_markers, label='optimized_markers', color='orange')
-add_projections(axes, markers_from_env, label='markers_from_env', color='green')
-
-axes[0].legend()
-axes[1].legend()
-axes[2].legend()
-
-
 original = np.array(original_markers)
 optimized = np.array(optimized_markers)
-
 
 M_aligned = recover_target(optimized_markers, markers_from_env)
 
@@ -172,17 +141,9 @@ print(M_aligned)
 print(f"Total error by markers before optimization: {np.sum(np.linalg.norm(original - np.array(markers_from_env), axis=1))}")
 print(f"Total error by markers after optimization: {np.sum(np.linalg.norm(original - M_aligned, axis=1))}")
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+log_points3d("world/final/original", original_markers, colors=[255, 0, 0])
+log_points3d("world/final/optimized", optimized_markers, colors=[255, 255, 0])
+log_points3d("world/final/aligned", M_aligned, colors=[0, 255, 0])
+log_points3d("world/final/markers_from_env", markers_from_env, colors=[0, 0, 255])
 
-ax.scatter(original_markers[:,0], original_markers[:,1], original_markers[:,2], label="Original")
-ax.scatter(optimized_markers[:,0], optimized_markers[:,1], optimized_markers[:,2], label="Optimized")
-# ax.scatter(M_aligned[:,0], M_aligned[:,1], M_aligned[:,2], label="Aligned")
-ax.scatter(markers_from_env[:,0], markers_from_env[:,1], markers_from_env[:,2], label="markers_from_env")
-
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-ax.legend()
-
-plt.show()
+print(f"Rerun dump saved to {RRD_PATH}")

@@ -1,12 +1,88 @@
 from lmfit import Parameter, Parameters
 import numpy as np
 import sys
+import rerun as rr
 from dataclasses import dataclass, field
 from typing import List
 
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from Utils import *
+
+
+def log_optimization_frame(params: Parameters, snapshots: "list[Snapshot]", markers, entity_prefix: str = ""):
+    """Log the current camera positions, markers, rays and marker->position vectors for one optimization iteration.
+
+    Each marker, position, ray and marker->position vector is logged as its own entity so it can be
+    individually toggled/inspected in the rerun viewer's 3D view.
+    """
+    diff_markers_from_params = np.array([extract_point_from_parameters(
+        parameters=params, prefix=f"diff_marker_{i}") for i in range(len(markers))])
+    current_markers = np.array(markers) + diff_markers_from_params
+
+    for marker_index, marker in enumerate(current_markers):
+        rr.log(f"{entity_prefix}world/markers/{marker_index}", rr.Points3D([marker], colors=[0, 0, 255]))
+
+    for i, snapshot in enumerate(snapshots):
+        diff_position = extract_point_from_parameters(parameters=params, prefix=f"diff_pos_{i}")
+        position = snapshot.position + diff_position
+        rr.log(f"{entity_prefix}world/positions/{i}", rr.Points3D([position], colors=[255, 255, 0]))
+
+        quat_u = extract_point_from_parameters(parameters=params, prefix=f"quat_u_{i}")
+        quat_w = params[f"quat_w_{i}"]
+        for ray_it, ray in enumerate(snapshot.rays):
+            rotated_ray = quat_w * quat_w * ray + 2 * (quat_w * np.cross(quat_u, ray) + quat_u * np.dot(quat_u, ray)) - np.dot(quat_u, quat_u) * ray
+            marker_index = snapshot.marker_indices[ray_it]
+            marker = current_markers[marker_index]
+            pm = marker - position
+            ray_end = position + rotated_ray * np.linalg.norm(pm)
+
+            rr.log(f"{entity_prefix}world/rays/{i}/{ray_it}", rr.LineStrips3D([[position, ray_end]], colors=[0, 255, 255]))
+            rr.log(f"{entity_prefix}world/marker_to_position/{i}/{ray_it}", rr.LineStrips3D([[position, marker]], colors=[255, 0, 255]))
+
+
+def log_per_component_error(resid: np.ndarray, snapshots: "list[Snapshot]", markers, entity_prefix: str = ""):
+    """Log each individual residual component of cost_func's output as its own scalar entity.
+
+    Mirrors cost_func's layout: one entry per (snapshot, ray), followed by one entry per
+    (marker, coordinate) scale term.
+    """
+    idx = 0
+    for i, snapshot in enumerate(snapshots):
+        for ray_it in range(len(snapshot.rays)):
+            rr.log(f"{entity_prefix}error/rays/{i}/{ray_it}", rr.Scalars(resid[idx]))
+            idx += 1
+
+    for marker_index in range(len(markers)):
+        for coordinate in ("x", "y", "z"):
+            rr.log(f"{entity_prefix}error/markers/{marker_index}_{coordinate}", rr.Scalars(resid[idx]))
+            idx += 1
+
+
+def make_optimization_iter_cb(timeline: str = "iteration", entity_prefix: str = ""):
+    """Build an lmfit iter_cb that logs the 3D scene, the cost function and per-component error to rerun on each iteration."""
+    def iter_cb(params, iteration, resid, snapshots, markers, scale, *args, **kwargs):
+        rr.reset_time()
+        rr.set_time(timeline, sequence=iteration)
+        log_optimization_frame(params, snapshots, markers, entity_prefix=entity_prefix)
+        log_per_component_error(resid, snapshots, markers, entity_prefix=entity_prefix)
+        rr.log(f"{entity_prefix}cost/sum_of_squares", rr.Scalars(np.sum(resid**2)))
+    return iter_cb
+
+
+def log_points3d(entity_path: str, points: np.ndarray, colors=None, radii=None):
+    points = np.asarray(points)
+    rr.log(entity_path, rr.Points3D(points, colors=colors, radii=radii), static=True)
+
+
+def make_default_blueprint():
+    import rerun.blueprint as rrb
+    return rrb.Blueprint(
+        rrb.Horizontal(
+            rrb.Spatial3DView(origin="/", contents=["world/**"], name="3D Points"),
+            rrb.TimeSeriesView(origin="/", contents=["cost/**"], name="Cost"),
+        ),
+    )
 
 
 def cost_func(parameters: Parameters, snapshots: [Snapshot], markers, scale: float):
